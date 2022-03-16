@@ -17,8 +17,24 @@
 package org.apache.rocketmq.client.producer;
 
 public enum SendStatus {
-    SEND_OK,
-    FLUSH_DISK_TIMEOUT,
-    FLUSH_SLAVE_TIMEOUT,
-    SLAVE_NOT_AVAILABLE,
+  /**
+   * 成功，发送成功的具体含义，
+   * 比如消息是否已经被存储到磁盘？
+   * 消息是否被同步到了Slave上？
+   * 消息在Slave上是否被写入磁盘？
+   * 需要结合所配置的刷盘策略、主从策略来定。这个状态还可以简单理解为，没有发生上面列出的三个问题状态就是SEND_OK
+   */
+  SEND_OK,
+  /**
+   * 表示没有在规定时间内完成刷盘（需要Broker的刷盘策略被设置成SYNC_FLUSH才会报这个错误）
+   */
+  FLUSH_DISK_TIMEOUT,
+  /**
+   * 在主备方式下，并且Broker被设置成SYNC_MASTER，但是没有找到配置成Slave的Broker
+   */
+  FLUSH_SLAVE_TIMEOUT,
+  /**
+   * 在主备方式下，并且Broker被设置成SYNC_MASTER，没有在设定时间内完成主从同步
+   */
+  SLAVE_NOT_AVAILABLE,
 }
