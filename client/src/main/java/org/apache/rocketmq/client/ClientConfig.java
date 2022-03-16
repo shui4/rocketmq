@@ -90,7 +90,11 @@ public class ClientConfig {
     public String getInstanceName() {
         return instanceName;
     }
-
+    
+    /**
+     * 当一个JVM需要启动多个Producer的时候,通过设置不同的InstanceName来区分,不设置的话系统使用默认名称"DEFAULT"
+     * @param instanceName
+     */
     public void setInstanceName(String instanceName) {
         this.instanceName = instanceName;
     }
