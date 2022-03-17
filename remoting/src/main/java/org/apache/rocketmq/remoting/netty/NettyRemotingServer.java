@@ -193,7 +193,7 @@ public class NettyRemotingServer extends NettyRemotingAbstract implements Remoti
                     return new Thread(r, "NettyServerCodecThread_" + this.threadIndex.incrementAndGet());
                 }
             });
-
+        // 对handler进行实例化
         prepareSharableHandlers();
 
         ServerBootstrap childHandler =

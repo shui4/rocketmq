@@ -41,10 +41,12 @@ public class Producer {
             // 设置消息延迟
             //            msg.setDelayTimeLevel(3);
             // 同步发送
-            SendResult sendResult = producer.send(msg);
+            //            SendResult sendResult = producer.send(msg);
             // 状态含义
-            sendResult.getSendStatus();
+            //            sendResult.getSendStatus();
             //          System.out.printf("%s%n", sendResult);
+            
+            
             // 异步发送
             producer.send(
                 msg,
