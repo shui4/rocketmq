@@ -24,7 +24,7 @@ import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
 /**
- * Offset store interface
+ * OffsetStore里存储的是当前消费者所消费的消息在队列的偏移量
  */
 public interface OffsetStore {
     /**

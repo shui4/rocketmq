@@ -101,7 +101,10 @@ class BrokerLiveInfo {
   }
 }
 
-/** https://www.liuchengtu.com/lct/#X493c32ba6198558fa0d55f9ac2513af0 */
+/**
+ * <a href='https://www.liuchengtu.com/lct/#X493c32ba6198558fa0d55f9ac2513af0'>链接</a><br>
+ * 集群状态存储
+ */
 public class RouteInfoManager {
   private static final long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
   private static final InternalLogger log =
@@ -124,6 +127,46 @@ public class RouteInfoManager {
 
   public int addWritePermOfBrokerByLock(final String brokerName) {
     return operateWritePermOfBrokerByLock(brokerName, RequestCode.ADD_WRITE_PERM_OF_BROKER);
+  }
+
+  private int operateWritePermOfBrokerByLock(final String brokerName, final int requestCode) {
+    try {
+      try {
+        this.lock.writeLock().lockInterruptibly();
+        return operateWritePermOfBroker(brokerName, requestCode);
+      } finally {
+        this.lock.writeLock().unlock();
+      }
+    } catch (Exception e) {
+      log.error("operateWritePermOfBrokerByLock Exception", e);
+    }
+
+    return 0;
+  }
+
+  private int operateWritePermOfBroker(final String brokerName, final int requestCode) {
+    int topicCnt = 0;
+    for (Entry<String, List<QueueData>> entry : this.topicQueueTable.entrySet()) {
+      List<QueueData> qdList = entry.getValue();
+
+      for (QueueData qd : qdList) {
+        if (qd.getBrokerName().equals(brokerName)) {
+          int perm = qd.getPerm();
+          switch (requestCode) {
+            case RequestCode.WIPE_WRITE_PERM_OF_BROKER:
+              perm &= ~PermName.PERM_WRITE;
+              break;
+            case RequestCode.ADD_WRITE_PERM_OF_BROKER:
+              perm = PermName.PERM_READ | PermName.PERM_WRITE;
+              break;
+          }
+          qd.setPerm(perm);
+          topicCnt++;
+        }
+      }
+    }
+
+    return topicCnt;
   }
 
   public void deleteTopic(final String topic) {
@@ -795,45 +838,5 @@ public class RouteInfoManager {
 
   public int wipeWritePermOfBrokerByLock(final String brokerName) {
     return operateWritePermOfBrokerByLock(brokerName, RequestCode.WIPE_WRITE_PERM_OF_BROKER);
-  }
-
-  private int operateWritePermOfBrokerByLock(final String brokerName, final int requestCode) {
-    try {
-      try {
-        this.lock.writeLock().lockInterruptibly();
-        return operateWritePermOfBroker(brokerName, requestCode);
-      } finally {
-        this.lock.writeLock().unlock();
-      }
-    } catch (Exception e) {
-      log.error("operateWritePermOfBrokerByLock Exception", e);
-    }
-
-    return 0;
-  }
-
-  private int operateWritePermOfBroker(final String brokerName, final int requestCode) {
-    int topicCnt = 0;
-    for (Entry<String, List<QueueData>> entry : this.topicQueueTable.entrySet()) {
-      List<QueueData> qdList = entry.getValue();
-
-      for (QueueData qd : qdList) {
-        if (qd.getBrokerName().equals(brokerName)) {
-          int perm = qd.getPerm();
-          switch (requestCode) {
-            case RequestCode.WIPE_WRITE_PERM_OF_BROKER:
-              perm &= ~PermName.PERM_WRITE;
-              break;
-            case RequestCode.ADD_WRITE_PERM_OF_BROKER:
-              perm = PermName.PERM_READ | PermName.PERM_WRITE;
-              break;
-          }
-          qd.setPerm(perm);
-          topicCnt++;
-        }
-      }
-    }
-
-    return topicCnt;
   }
 }

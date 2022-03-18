@@ -98,26 +98,20 @@ public class NamesrvController {
 
     this.remotingServer =
         new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
-
     this.remotingExecutor =
         Executors.newFixedThreadPool(
+            // 默认8个线程
             nettyServerConfig.getServerWorkerThreads(),
             new ThreadFactoryImpl("RemotingExecutorThread_"));
     // 注册request处理器
     this.registerProcessor();
 
-    // 扫描非活动的Broker
+    // 扫描失效的Broker
     this.scheduledExecutorService.scheduleAtFixedRate(
-        NamesrvController.this.routeInfoManager::scanNotActiveBroker,
-        5,
-        10,
-        TimeUnit.SECONDS);
-    // 打印所有的配置
+        NamesrvController.this.routeInfoManager::scanNotActiveBroker, 5, 10, TimeUnit.SECONDS);
+    // 打印配置信息
     this.scheduledExecutorService.scheduleAtFixedRate(
-        NamesrvController.this.kvConfigManager::printAllPeriodically,
-        1,
-        10,
-        TimeUnit.MINUTES);
+        NamesrvController.this.kvConfigManager::printAllPeriodically, 1, 10, TimeUnit.MINUTES);
 
     if (TlsSystemConfig.tlsMode != TlsMode.DISABLED) {
       // Register a listener to reload SslContext
@@ -187,7 +181,7 @@ public class NamesrvController {
   }
 
   public void start() throws Exception {
-    // 启动Netty服务
+    // 启动Netty通信服务
     this.remotingServer.start();
     // 关注一些文件，这些文件发生变化之后则发生事件，这时相关的监听者们会对这些变化的文件进行相关处理
     if (this.fileWatchService != null) {

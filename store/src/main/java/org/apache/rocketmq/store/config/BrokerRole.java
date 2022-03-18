@@ -21,3 +21,4 @@ public enum BrokerRole {
     SYNC_MASTER,
     SLAVE;
 }
+
