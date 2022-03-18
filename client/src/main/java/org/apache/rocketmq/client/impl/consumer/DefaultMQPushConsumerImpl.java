@@ -992,7 +992,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                   + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
               null);
         }
-        // 消息队列客户端实例启动
         mQClientFactory.start();
         log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
         this.serviceState = ServiceState.RUNNING;
