@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-/**
- * $Id: NamesrvConfig.java 1839 2013-05-16 02:12:02Z vintagewang@apache.org $
- */
+/** $Id: NamesrvConfig.java 1839 2013-05-16 02:12:02Z vintagewang@apache.org $ */
 package org.apache.rocketmq.common.namesrv;
 
 import java.io.File;
@@ -27,60 +25,76 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 
 public class NamesrvConfig {
-    private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
+  private static final InternalLogger log =
+      InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
-    private String rocketmqHome = System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
-    private String kvConfigPath = System.getProperty("user.home") + File.separator + "namesrv" + File.separator + "kvConfig.json";
-    private String configStorePath = System.getProperty("user.home") + File.separator + "namesrv" + File.separator + "namesrv.properties";
-    private String productEnvName = "center";
-    private boolean clusterTest = false;
-    private boolean orderMessageEnable = false;
+  private String rocketmqHome =
+      System.getProperty(MixAll.ROCKETMQ_HOME_PROPERTY, System.getenv(MixAll.ROCKETMQ_HOME_ENV));
+  /** NameServer存储KV配置属性的持久化路径 */
+  private String kvConfigPath =
+      System.getProperty("user.home")
+          + File.separator
+          + "namesrv"
+          + File.separator
+          + "kvConfig.json";
+  /** NameServer配置文件路径。可通过-c选项设置它 */
+  private String configStorePath =
+      System.getProperty("user.home")
+          + File.separator
+          + "namesrv"
+          + File.separator
+          + "namesrv.properties";
 
-    public boolean isOrderMessageEnable() {
-        return orderMessageEnable;
-    }
+  private String productEnvName = "center";
+  private boolean clusterTest = false;
+  /** 是否支持顺序消息，默认是不支持 */
+  private boolean orderMessageEnable = false;
 
-    public void setOrderMessageEnable(boolean orderMessageEnable) {
-        this.orderMessageEnable = orderMessageEnable;
-    }
+  public boolean isOrderMessageEnable() {
+    return orderMessageEnable;
+  }
 
-    public String getRocketmqHome() {
-        return rocketmqHome;
-    }
+  public void setOrderMessageEnable(boolean orderMessageEnable) {
+    this.orderMessageEnable = orderMessageEnable;
+  }
 
-    public void setRocketmqHome(String rocketmqHome) {
-        this.rocketmqHome = rocketmqHome;
-    }
+  public String getRocketmqHome() {
+    return rocketmqHome;
+  }
 
-    public String getKvConfigPath() {
-        return kvConfigPath;
-    }
+  public void setRocketmqHome(String rocketmqHome) {
+    this.rocketmqHome = rocketmqHome;
+  }
 
-    public void setKvConfigPath(String kvConfigPath) {
-        this.kvConfigPath = kvConfigPath;
-    }
+  public String getKvConfigPath() {
+    return kvConfigPath;
+  }
 
-    public String getProductEnvName() {
-        return productEnvName;
-    }
+  public void setKvConfigPath(String kvConfigPath) {
+    this.kvConfigPath = kvConfigPath;
+  }
 
-    public void setProductEnvName(String productEnvName) {
-        this.productEnvName = productEnvName;
-    }
+  public String getProductEnvName() {
+    return productEnvName;
+  }
 
-    public boolean isClusterTest() {
-        return clusterTest;
-    }
+  public void setProductEnvName(String productEnvName) {
+    this.productEnvName = productEnvName;
+  }
 
-    public void setClusterTest(boolean clusterTest) {
-        this.clusterTest = clusterTest;
-    }
+  public boolean isClusterTest() {
+    return clusterTest;
+  }
 
-    public String getConfigStorePath() {
-        return configStorePath;
-    }
+  public void setClusterTest(boolean clusterTest) {
+    this.clusterTest = clusterTest;
+  }
 
-    public void setConfigStorePath(final String configStorePath) {
-        this.configStorePath = configStorePath;
-    }
+  public String getConfigStorePath() {
+    return configStorePath;
+  }
+
+  public void setConfigStorePath(final String configStorePath) {
+    this.configStorePath = configStorePath;
+  }
 }

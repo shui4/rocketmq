@@ -15,104 +15,106 @@
  * limitations under the License.
  */
 
-/**
- * $Id: QueueData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $
- */
+/** $Id: QueueData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $ */
 package org.apache.rocketmq.common.protocol.route;
 
 public class QueueData implements Comparable<QueueData> {
-    private String brokerName;
-    private int readQueueNums;
-    private int writeQueueNums;
-    private int perm;
-    private int topicSysFlag;
+  private String brokerName;
+  /** 读队列数量，默认4个 */
+  private int readQueueNums;
+  /** 写队列数量，默认4个 */
+  private int writeQueueNums;
+  /** 读写权限，4-读、2-写，6-读写 */
+  private int perm;
 
-    public int getReadQueueNums() {
-        return readQueueNums;
-    }
+  /** topic同步标识 */
+  private int topicSysFlag;
 
-    public void setReadQueueNums(int readQueueNums) {
-        this.readQueueNums = readQueueNums;
-    }
+  public int getReadQueueNums() {
+    return readQueueNums;
+  }
 
-    public int getWriteQueueNums() {
-        return writeQueueNums;
-    }
+  public void setReadQueueNums(int readQueueNums) {
+    this.readQueueNums = readQueueNums;
+  }
 
-    public void setWriteQueueNums(int writeQueueNums) {
-        this.writeQueueNums = writeQueueNums;
-    }
+  public int getWriteQueueNums() {
+    return writeQueueNums;
+  }
 
-    public int getPerm() {
-        return perm;
-    }
+  public void setWriteQueueNums(int writeQueueNums) {
+    this.writeQueueNums = writeQueueNums;
+  }
 
-    public void setPerm(int perm) {
-        this.perm = perm;
-    }
+  public int getPerm() {
+    return perm;
+  }
 
-    public int getTopicSysFlag() {
-        return topicSysFlag;
-    }
+  public void setPerm(int perm) {
+    this.perm = perm;
+  }
 
-    public void setTopicSysFlag(int topicSysFlag) {
-        this.topicSysFlag = topicSysFlag;
-    }
+  public int getTopicSysFlag() {
+    return topicSysFlag;
+  }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((brokerName == null) ? 0 : brokerName.hashCode());
-        result = prime * result + perm;
-        result = prime * result + readQueueNums;
-        result = prime * result + writeQueueNums;
-        result = prime * result + topicSysFlag;
-        return result;
-    }
+  public void setTopicSysFlag(int topicSysFlag) {
+    this.topicSysFlag = topicSysFlag;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        QueueData other = (QueueData) obj;
-        if (brokerName == null) {
-            if (other.brokerName != null)
-                return false;
-        } else if (!brokerName.equals(other.brokerName))
-            return false;
-        if (perm != other.perm)
-            return false;
-        if (readQueueNums != other.readQueueNums)
-            return false;
-        if (writeQueueNums != other.writeQueueNums)
-            return false;
-        if (topicSysFlag != other.topicSysFlag)
-            return false;
-        return true;
-    }
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((brokerName == null) ? 0 : brokerName.hashCode());
+    result = prime * result + perm;
+    result = prime * result + readQueueNums;
+    result = prime * result + writeQueueNums;
+    result = prime * result + topicSysFlag;
+    return result;
+  }
 
-    @Override
-    public String toString() {
-        return "QueueData [brokerName=" + brokerName + ", readQueueNums=" + readQueueNums
-            + ", writeQueueNums=" + writeQueueNums + ", perm=" + perm + ", topicSysFlag=" + topicSysFlag
-            + "]";
-    }
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
+    QueueData other = (QueueData) obj;
+    if (brokerName == null) {
+      if (other.brokerName != null) return false;
+    } else if (!brokerName.equals(other.brokerName)) return false;
+    if (perm != other.perm) return false;
+    if (readQueueNums != other.readQueueNums) return false;
+    if (writeQueueNums != other.writeQueueNums) return false;
+    if (topicSysFlag != other.topicSysFlag) return false;
+    return true;
+  }
 
-    @Override
-    public int compareTo(QueueData o) {
-        return this.brokerName.compareTo(o.getBrokerName());
-    }
+  @Override
+  public String toString() {
+    return "QueueData [brokerName="
+        + brokerName
+        + ", readQueueNums="
+        + readQueueNums
+        + ", writeQueueNums="
+        + writeQueueNums
+        + ", perm="
+        + perm
+        + ", topicSysFlag="
+        + topicSysFlag
+        + "]";
+  }
 
-    public String getBrokerName() {
-        return brokerName;
-    }
+  @Override
+  public int compareTo(QueueData o) {
+    return this.brokerName.compareTo(o.getBrokerName());
+  }
 
-    public void setBrokerName(String brokerName) {
-        this.brokerName = brokerName;
-    }
+  public String getBrokerName() {
+    return brokerName;
+  }
+
+  public void setBrokerName(String brokerName) {
+    this.brokerName = brokerName;
+  }
 }

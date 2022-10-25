@@ -24,23 +24,28 @@ import org.apache.rocketmq.common.TopicConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 public class TopicConfigSerializeWrapper extends RemotingSerializable {
-    private ConcurrentMap<String, TopicConfig> topicConfigTable =
-        new ConcurrentHashMap<String, TopicConfig>();
-    private DataVersion dataVersion = new DataVersion();
+  /**
+   * 内部存储的是Broker启动时默认的一些topic，如MixAll.SELF_TEST_TOPIC...。
+   * Broker中的topic默认存储在${Rocket_Home}/store/config/topics.json中
+   */
+  private ConcurrentMap<String, TopicConfig> topicConfigTable =
+      new ConcurrentHashMap<String, TopicConfig>();
 
-    public ConcurrentMap<String, TopicConfig> getTopicConfigTable() {
-        return topicConfigTable;
-    }
+  private DataVersion dataVersion = new DataVersion();
 
-    public void setTopicConfigTable(ConcurrentMap<String, TopicConfig> topicConfigTable) {
-        this.topicConfigTable = topicConfigTable;
-    }
+  public ConcurrentMap<String, TopicConfig> getTopicConfigTable() {
+    return topicConfigTable;
+  }
 
-    public DataVersion getDataVersion() {
-        return dataVersion;
-    }
+  public void setTopicConfigTable(ConcurrentMap<String, TopicConfig> topicConfigTable) {
+    this.topicConfigTable = topicConfigTable;
+  }
 
-    public void setDataVersion(DataVersion dataVersion) {
-        this.dataVersion = dataVersion;
-    }
+  public DataVersion getDataVersion() {
+    return dataVersion;
+  }
+
+  public void setDataVersion(DataVersion dataVersion) {
+    this.dataVersion = dataVersion;
+  }
 }

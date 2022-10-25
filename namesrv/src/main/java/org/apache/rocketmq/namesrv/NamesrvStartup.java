@@ -90,7 +90,7 @@ public class NamesrvStartup {
       System.exit(-1);
       return null;
     }
-
+    // 代码清单2-1 NameServer加载配置文件
     final NamesrvConfig namesrvConfig = new NamesrvConfig();
     final NettyServerConfig nettyServerConfig = new NettyServerConfig();
     nettyServerConfig.setListenPort(9876);
@@ -110,7 +110,7 @@ public class NamesrvStartup {
         in.close();
       }
     }
-
+    // -p：打印配置参数
     if (commandLine.hasOption('p')) {
       InternalLogger console = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_CONSOLE_NAME);
       MixAll.printObjectProperties(console, namesrvConfig);
@@ -131,6 +131,7 @@ public class NamesrvStartup {
     JoranConfigurator configurator = new JoranConfigurator();
     configurator.setContext(lc);
     lc.reset();
+    // 通过 ROCKETMQ_HOME、-Drocket.home.dir 设置主目录
     configurator.doConfigure(namesrvConfig.getRocketmqHome() + "/conf/logback_namesrv.xml");
 
     log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
@@ -157,7 +158,7 @@ public class NamesrvStartup {
       controller.shutdown();
       System.exit(-3);
     }
-    // 程序退出之前进行清理工作
+    // 注册JVM钩子函数，程序退出之前进行清理工作
     Runtime.getRuntime()
         .addShutdownHook(
             new ShutdownHookThread(

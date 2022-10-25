@@ -17,144 +17,165 @@
 package org.apache.rocketmq.remoting.netty;
 
 public class NettyServerConfig implements Cloneable {
-    private int listenPort = 8888;
-    private int serverWorkerThreads = 8;
-    private int serverCallbackExecutorThreads = 0;
-    private int serverSelectorThreads = 3;
-    private int serverOnewaySemaphoreValue = 256;
-    private int serverAsyncSemaphoreValue = 64;
-    private int serverChannelMaxIdleTimeSeconds = 120;
+  /** 监听端口 */
+  private int listenPort = 8888;
+  /** Netty业务线程数 */
+  private int serverWorkerThreads = 8;
+  /**
+   * 。 Netty
+   * 任务线程池线程个数。Netty会根据业务类型创建不同的线程池，不如处理消息发送、消息消费、心跳检测等。如果该业务类型（RequestCode）未注册线程池，则由public线程池执行
+   */
+  private int serverCallbackExecutorThreads = 0;
 
-    private int serverSocketSndBufSize = NettySystemConfig.socketSndbufSize;
-    private int serverSocketRcvBufSize = NettySystemConfig.socketRcvbufSize;
-    private int writeBufferHighWaterMark = NettySystemConfig.writeBufferHighWaterMark;
-    private int writeBufferLowWaterMark = NettySystemConfig.writeBufferLowWaterMark;
-    private int serverSocketBacklog = NettySystemConfig.socketBacklog;
-    private boolean serverPooledByteBufAllocatorEnable = true;
+  /**
+   * I/O线程池个数，主要是NameServer、Broker端解析请求、返回相应的线程个数。这类线程主要用于处理网络请求，先解析请求包、返回相应的线程个数。
+   * 这类先洗个主要用于处理网络请求，先解析请求包，然后转发到各个业务线程完成具体的业务操作，最后结果返回给调用方
+   */
+  private int serverSelectorThreads = 3;
+  /** 消息请求的并发度(Broker端参数） */
+  private int serverOnewaySemaphoreValue = 256;
+  /** 异步消息发送的最大并发度 (Broker端参数） */
+  private int serverAsyncSemaphoreValue = 64;
 
-    /**
-     * make make install
-     *
-     *
-     * ../glibc-2.10.1/configure \ --prefix=/usr \ --with-headers=/usr/include \
-     * --host=x86_64-linux-gnu \ --build=x86_64-pc-linux-gnu \ --without-gd
-     */
-    private boolean useEpollNativeSelector = false;
+  /** 网络连接最大空闲时 间，默认为120S。如果连接空闲时间超过该参数设置的值，连接将被关闭 */
+  private int serverChannelMaxIdleTimeSeconds = 120;
 
-    public int getListenPort() {
-        return listenPort;
-    }
+  /** 网络socket发送缓存区大小，默认64kb */
+  private int serverSocketSndBufSize = NettySystemConfig.socketSndbufSize;
 
-    public void setListenPort(int listenPort) {
-        this.listenPort = listenPort;
-    }
+  /** 网络socket接收缓存区大小，默认64kb */
+  private int serverSocketRcvBufSize = NettySystemConfig.socketRcvbufSize;
 
-    public int getServerWorkerThreads() {
-        return serverWorkerThreads;
-    }
+  private int writeBufferHighWaterMark = NettySystemConfig.writeBufferHighWaterMark;
+  private int writeBufferLowWaterMark = NettySystemConfig.writeBufferLowWaterMark;
+  private int serverSocketBacklog = NettySystemConfig.socketBacklog;
+  /** ByteBuffer是否开启缓存，建议开启 */
+  private boolean serverPooledByteBufAllocatorEnable = true;
 
-    public void setServerWorkerThreads(int serverWorkerThreads) {
-        this.serverWorkerThreads = serverWorkerThreads;
-    }
+  /**
+   * 是否启用Epoll I/O 模型，Linux环境下建议开启
+   *
+   * <p>make make install
+   *
+   * <p>../glibc-2.10.1/configure \ --prefix=/usr \ --with-headers=/usr/include \
+   * --host=x86_64-linux-gnu \ --build=x86_64-pc-linux-gnu \ --without-gd
+   */
+  private boolean useEpollNativeSelector = false;
 
-    public int getServerSelectorThreads() {
-        return serverSelectorThreads;
-    }
+  public int getListenPort() {
+    return listenPort;
+  }
 
-    public void setServerSelectorThreads(int serverSelectorThreads) {
-        this.serverSelectorThreads = serverSelectorThreads;
-    }
+  public void setListenPort(int listenPort) {
+    this.listenPort = listenPort;
+  }
 
-    public int getServerOnewaySemaphoreValue() {
-        return serverOnewaySemaphoreValue;
-    }
+  public int getServerWorkerThreads() {
+    return serverWorkerThreads;
+  }
 
-    public void setServerOnewaySemaphoreValue(int serverOnewaySemaphoreValue) {
-        this.serverOnewaySemaphoreValue = serverOnewaySemaphoreValue;
-    }
+  public void setServerWorkerThreads(int serverWorkerThreads) {
+    this.serverWorkerThreads = serverWorkerThreads;
+  }
 
-    public int getServerCallbackExecutorThreads() {
-        return serverCallbackExecutorThreads;
-    }
+  public int getServerSelectorThreads() {
+    return serverSelectorThreads;
+  }
 
-    public void setServerCallbackExecutorThreads(int serverCallbackExecutorThreads) {
-        this.serverCallbackExecutorThreads = serverCallbackExecutorThreads;
-    }
+  public void setServerSelectorThreads(int serverSelectorThreads) {
+    this.serverSelectorThreads = serverSelectorThreads;
+  }
 
-    public int getServerAsyncSemaphoreValue() {
-        return serverAsyncSemaphoreValue;
-    }
+  public int getServerOnewaySemaphoreValue() {
+    return serverOnewaySemaphoreValue;
+  }
 
-    public void setServerAsyncSemaphoreValue(int serverAsyncSemaphoreValue) {
-        this.serverAsyncSemaphoreValue = serverAsyncSemaphoreValue;
-    }
+  public void setServerOnewaySemaphoreValue(int serverOnewaySemaphoreValue) {
+    this.serverOnewaySemaphoreValue = serverOnewaySemaphoreValue;
+  }
 
-    public int getServerChannelMaxIdleTimeSeconds() {
-        return serverChannelMaxIdleTimeSeconds;
-    }
+  public int getServerCallbackExecutorThreads() {
+    return serverCallbackExecutorThreads;
+  }
 
-    public void setServerChannelMaxIdleTimeSeconds(int serverChannelMaxIdleTimeSeconds) {
-        this.serverChannelMaxIdleTimeSeconds = serverChannelMaxIdleTimeSeconds;
-    }
+  public void setServerCallbackExecutorThreads(int serverCallbackExecutorThreads) {
+    this.serverCallbackExecutorThreads = serverCallbackExecutorThreads;
+  }
 
-    public int getServerSocketSndBufSize() {
-        return serverSocketSndBufSize;
-    }
+  public int getServerAsyncSemaphoreValue() {
+    return serverAsyncSemaphoreValue;
+  }
 
-    public void setServerSocketSndBufSize(int serverSocketSndBufSize) {
-        this.serverSocketSndBufSize = serverSocketSndBufSize;
-    }
+  public void setServerAsyncSemaphoreValue(int serverAsyncSemaphoreValue) {
+    this.serverAsyncSemaphoreValue = serverAsyncSemaphoreValue;
+  }
 
-    public int getServerSocketRcvBufSize() {
-        return serverSocketRcvBufSize;
-    }
+  public int getServerChannelMaxIdleTimeSeconds() {
+    return serverChannelMaxIdleTimeSeconds;
+  }
 
-    public void setServerSocketRcvBufSize(int serverSocketRcvBufSize) {
-        this.serverSocketRcvBufSize = serverSocketRcvBufSize;
-    }
+  public void setServerChannelMaxIdleTimeSeconds(int serverChannelMaxIdleTimeSeconds) {
+    this.serverChannelMaxIdleTimeSeconds = serverChannelMaxIdleTimeSeconds;
+  }
 
-    public int getServerSocketBacklog() {
-        return serverSocketBacklog;
-    }
+  public int getServerSocketSndBufSize() {
+    return serverSocketSndBufSize;
+  }
 
-    public void setServerSocketBacklog(int serverSocketBacklog) {
-        this.serverSocketBacklog = serverSocketBacklog;
-    }
+  public void setServerSocketSndBufSize(int serverSocketSndBufSize) {
+    this.serverSocketSndBufSize = serverSocketSndBufSize;
+  }
 
-    public boolean isServerPooledByteBufAllocatorEnable() {
-        return serverPooledByteBufAllocatorEnable;
-    }
+  public int getServerSocketRcvBufSize() {
+    return serverSocketRcvBufSize;
+  }
 
-    public void setServerPooledByteBufAllocatorEnable(boolean serverPooledByteBufAllocatorEnable) {
-        this.serverPooledByteBufAllocatorEnable = serverPooledByteBufAllocatorEnable;
-    }
+  public void setServerSocketRcvBufSize(int serverSocketRcvBufSize) {
+    this.serverSocketRcvBufSize = serverSocketRcvBufSize;
+  }
 
-    public boolean isUseEpollNativeSelector() {
-        return useEpollNativeSelector;
-    }
+  public int getServerSocketBacklog() {
+    return serverSocketBacklog;
+  }
 
-    public void setUseEpollNativeSelector(boolean useEpollNativeSelector) {
-        this.useEpollNativeSelector = useEpollNativeSelector;
-    }
+  public void setServerSocketBacklog(int serverSocketBacklog) {
+    this.serverSocketBacklog = serverSocketBacklog;
+  }
 
-    @Override
-    public Object clone() throws CloneNotSupportedException {
-        return (NettyServerConfig) super.clone();
-    }
+  public boolean isServerPooledByteBufAllocatorEnable() {
+    return serverPooledByteBufAllocatorEnable;
+  }
 
-    public int getWriteBufferLowWaterMark() {
-        return writeBufferLowWaterMark;
-    }
+  public void setServerPooledByteBufAllocatorEnable(boolean serverPooledByteBufAllocatorEnable) {
+    this.serverPooledByteBufAllocatorEnable = serverPooledByteBufAllocatorEnable;
+  }
 
-    public void setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
-        this.writeBufferLowWaterMark = writeBufferLowWaterMark;
-    }
+  public boolean isUseEpollNativeSelector() {
+    return useEpollNativeSelector;
+  }
 
-    public int getWriteBufferHighWaterMark() {
-        return writeBufferHighWaterMark;
-    }
+  public void setUseEpollNativeSelector(boolean useEpollNativeSelector) {
+    this.useEpollNativeSelector = useEpollNativeSelector;
+  }
 
-    public void setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
-        this.writeBufferHighWaterMark = writeBufferHighWaterMark;
-    }
+  @Override
+  public Object clone() throws CloneNotSupportedException {
+    return (NettyServerConfig) super.clone();
+  }
+
+  public int getWriteBufferLowWaterMark() {
+    return writeBufferLowWaterMark;
+  }
+
+  public void setWriteBufferLowWaterMark(int writeBufferLowWaterMark) {
+    this.writeBufferLowWaterMark = writeBufferLowWaterMark;
+  }
+
+  public int getWriteBufferHighWaterMark() {
+    return writeBufferHighWaterMark;
+  }
+
+  public void setWriteBufferHighWaterMark(int writeBufferHighWaterMark) {
+    this.writeBufferHighWaterMark = writeBufferHighWaterMark;
+  }
 }

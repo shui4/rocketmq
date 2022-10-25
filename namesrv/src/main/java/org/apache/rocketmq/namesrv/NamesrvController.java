@@ -91,11 +91,11 @@ public class NamesrvController {
   public RouteInfoManager getRouteInfoManager() {
     return routeInfoManager;
   }
-
+  // 代码清单2-4
   public boolean initialize() {
     // k-v配置管理器加载
     this.kvConfigManager.load();
-
+    // 创建NettyServer网络处理对象
     this.remotingServer =
         new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
     this.remotingExecutor =
@@ -106,10 +106,11 @@ public class NamesrvController {
     // 注册request处理器
     this.registerProcessor();
 
-    // 扫描失效的Broker
+    // 扫描失效的Broker（心跳检测），每隔10秒
+    // org.apache.rocketmq.namesrv.routeinfo.RouteInfoManager.brokerLiveTable
     this.scheduledExecutorService.scheduleAtFixedRate(
         NamesrvController.this.routeInfoManager::scanNotActiveBroker, 5, 10, TimeUnit.SECONDS);
-    // 打印配置信息
+    // 打印配置信息，每隔10分钟
     this.scheduledExecutorService.scheduleAtFixedRate(
         NamesrvController.this.kvConfigManager::printAllPeriodically, 1, 10, TimeUnit.MINUTES);
 
