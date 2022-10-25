@@ -362,18 +362,21 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor
     response.setRemark(null);
     return response;
   }
-
+  // 代码清单2-22
   public RemotingCommand getRouteInfoByTopic(ChannelHandlerContext ctx, RemotingCommand request)
       throws RemotingCommandException {
     final RemotingCommand response = RemotingCommand.createResponseCommand(null);
     final GetRouteInfoRequestHeader requestHeader =
         (GetRouteInfoRequestHeader)
             request.decodeCommandCustomHeader(GetRouteInfoRequestHeader.class);
-
+    // TopicRouteData 为响应
+    // 从路由表topicQueueTable、         brokerAddrTable、filterServerTable中分别填充
+    // TopicRouteData：List<QueueData> List<BrokerData>  filterServer
     TopicRouteData topicRouteData =
         this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
-
+    // ? 找到主题对应路由信息
     if (topicRouteData != null) {
+      // ? 顺序消息
       if (this.namesrvController.getNamesrvConfig().isOrderMessageEnable()) {
         String orderTopicConf =
             this.namesrvController
@@ -388,7 +391,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor
       response.setRemark(null);
       return response;
     }
-
+    // 没有找到路由信息，设置为TOPIC_NOT_EXIST
     response.setCode(ResponseCode.TOPIC_NOT_EXIST);
     response.setRemark(
         "No topic route info in name server for the topic: "

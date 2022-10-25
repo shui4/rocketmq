@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-/**
- * $Id: TopicRouteData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $
- */
+/** $Id: TopicRouteData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $ */
 package org.apache.rocketmq.common.protocol.route;
 
 import java.util.ArrayList;
@@ -26,111 +24,113 @@ import java.util.List;
 import org.apache.rocketmq.remoting.protocol.RemotingSerializable;
 
 public class TopicRouteData extends RemotingSerializable {
-    private String orderTopicConf;
-    private List<QueueData> queueDatas;
-    private List<BrokerData> brokerDatas;
-    private HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
+  /** 顺序消息配置内容，来自kvConfig */
+  private String orderTopicConf;
 
-    public TopicRouteData cloneTopicRouteData() {
-        TopicRouteData topicRouteData = new TopicRouteData();
-        topicRouteData.setQueueDatas(new ArrayList<QueueData>());
-        topicRouteData.setBrokerDatas(new ArrayList<BrokerData>());
-        topicRouteData.setFilterServerTable(new HashMap<String, List<String>>());
-        topicRouteData.setOrderTopicConf(this.orderTopicConf);
+  /** topic队列元数据 */
+  private List<QueueData> queueDatas;
 
-        if (this.queueDatas != null) {
-            topicRouteData.getQueueDatas().addAll(this.queueDatas);
-        }
+  /** topic分步的broker元数据 */
+  private List<BrokerData> brokerDatas;
+  /** Broker上过滤服务器的地址列表 */
+  private HashMap<String /* brokerAddr */, List<String> /* Filter Server */> filterServerTable;
 
-        if (this.brokerDatas != null) {
-            topicRouteData.getBrokerDatas().addAll(this.brokerDatas);
-        }
+  public TopicRouteData cloneTopicRouteData() {
+    TopicRouteData topicRouteData = new TopicRouteData();
+    topicRouteData.setQueueDatas(new ArrayList<QueueData>());
+    topicRouteData.setBrokerDatas(new ArrayList<BrokerData>());
+    topicRouteData.setFilterServerTable(new HashMap<String, List<String>>());
+    topicRouteData.setOrderTopicConf(this.orderTopicConf);
 
-        if (this.filterServerTable != null) {
-            topicRouteData.getFilterServerTable().putAll(this.filterServerTable);
-        }
-
-        return topicRouteData;
+    if (this.queueDatas != null) {
+      topicRouteData.getQueueDatas().addAll(this.queueDatas);
     }
 
-    public List<QueueData> getQueueDatas() {
-        return queueDatas;
+    if (this.brokerDatas != null) {
+      topicRouteData.getBrokerDatas().addAll(this.brokerDatas);
     }
 
-    public void setQueueDatas(List<QueueData> queueDatas) {
-        this.queueDatas = queueDatas;
+    if (this.filterServerTable != null) {
+      topicRouteData.getFilterServerTable().putAll(this.filterServerTable);
     }
 
-    public List<BrokerData> getBrokerDatas() {
-        return brokerDatas;
-    }
+    return topicRouteData;
+  }
 
-    public void setBrokerDatas(List<BrokerData> brokerDatas) {
-        this.brokerDatas = brokerDatas;
-    }
+  public List<QueueData> getQueueDatas() {
+    return queueDatas;
+  }
 
-    public HashMap<String, List<String>> getFilterServerTable() {
-        return filterServerTable;
-    }
+  public void setQueueDatas(List<QueueData> queueDatas) {
+    this.queueDatas = queueDatas;
+  }
 
-    public void setFilterServerTable(HashMap<String, List<String>> filterServerTable) {
-        this.filterServerTable = filterServerTable;
-    }
+  public List<BrokerData> getBrokerDatas() {
+    return brokerDatas;
+  }
 
-    public String getOrderTopicConf() {
-        return orderTopicConf;
-    }
+  public void setBrokerDatas(List<BrokerData> brokerDatas) {
+    this.brokerDatas = brokerDatas;
+  }
 
-    public void setOrderTopicConf(String orderTopicConf) {
-        this.orderTopicConf = orderTopicConf;
-    }
+  public HashMap<String, List<String>> getFilterServerTable() {
+    return filterServerTable;
+  }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((brokerDatas == null) ? 0 : brokerDatas.hashCode());
-        result = prime * result + ((orderTopicConf == null) ? 0 : orderTopicConf.hashCode());
-        result = prime * result + ((queueDatas == null) ? 0 : queueDatas.hashCode());
-        result = prime * result + ((filterServerTable == null) ? 0 : filterServerTable.hashCode());
-        return result;
-    }
+  public void setFilterServerTable(HashMap<String, List<String>> filterServerTable) {
+    this.filterServerTable = filterServerTable;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        TopicRouteData other = (TopicRouteData) obj;
-        if (brokerDatas == null) {
-            if (other.brokerDatas != null)
-                return false;
-        } else if (!brokerDatas.equals(other.brokerDatas))
-            return false;
-        if (orderTopicConf == null) {
-            if (other.orderTopicConf != null)
-                return false;
-        } else if (!orderTopicConf.equals(other.orderTopicConf))
-            return false;
-        if (queueDatas == null) {
-            if (other.queueDatas != null)
-                return false;
-        } else if (!queueDatas.equals(other.queueDatas))
-            return false;
-        if (filterServerTable == null) {
-            if (other.filterServerTable != null)
-                return false;
-        } else if (!filterServerTable.equals(other.filterServerTable))
-            return false;
-        return true;
-    }
+  public String getOrderTopicConf() {
+    return orderTopicConf;
+  }
 
-    @Override
-    public String toString() {
-        return "TopicRouteData [orderTopicConf=" + orderTopicConf + ", queueDatas=" + queueDatas
-            + ", brokerDatas=" + brokerDatas + ", filterServerTable=" + filterServerTable + "]";
-    }
+  public void setOrderTopicConf(String orderTopicConf) {
+    this.orderTopicConf = orderTopicConf;
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((brokerDatas == null) ? 0 : brokerDatas.hashCode());
+    result = prime * result + ((orderTopicConf == null) ? 0 : orderTopicConf.hashCode());
+    result = prime * result + ((queueDatas == null) ? 0 : queueDatas.hashCode());
+    result = prime * result + ((filterServerTable == null) ? 0 : filterServerTable.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
+    TopicRouteData other = (TopicRouteData) obj;
+    if (brokerDatas == null) {
+      if (other.brokerDatas != null) return false;
+    } else if (!brokerDatas.equals(other.brokerDatas)) return false;
+    if (orderTopicConf == null) {
+      if (other.orderTopicConf != null) return false;
+    } else if (!orderTopicConf.equals(other.orderTopicConf)) return false;
+    if (queueDatas == null) {
+      if (other.queueDatas != null) return false;
+    } else if (!queueDatas.equals(other.queueDatas)) return false;
+    if (filterServerTable == null) {
+      if (other.filterServerTable != null) return false;
+    } else if (!filterServerTable.equals(other.filterServerTable)) return false;
+    return true;
+  }
+
+  @Override
+  public String toString() {
+    return "TopicRouteData [orderTopicConf="
+        + orderTopicConf
+        + ", queueDatas="
+        + queueDatas
+        + ", brokerDatas="
+        + brokerDatas
+        + ", filterServerTable="
+        + filterServerTable
+        + "]";
+  }
 }
