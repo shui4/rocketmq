@@ -82,17 +82,13 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
   private String producerGroup;
   /** 消息重试时选择另外一个Broker，是否不等待存储结果就返回，默认为false */
   private boolean retryAnotherBrokerWhenNotStoreOK = false;
-  /**
-   * Maximum number of retry to perform internally before claiming sending failure in asynchronous
-   * mode. This may potentially cause message duplication which is up to application developers to
-   * resolve.
-   */
+  /** 在异步模式下声明发送失败之前内部执行的最大重试次数。这可能会导致消息重复，这取决于应用程序开发人员来解决。 */
   private int retryTimesWhenSendAsyncFailed = 2;
   /** 在同步模式下声明发送失败之前内部执行的最大重试次数（发送一次+重试2次=3次）。这可能会导致消息重复，这取决于应用程序开发人员来解决。 */
   private int retryTimesWhenSendFailed = 2;
   /** 发送消息的超时时间，默认为3秒 */
   private int sendMsgTimeout = 3000;
-  /** Interface of asynchronous transfer data */
+  /** 异步传输数据接口 */
   private TraceDispatcher traceDispatcher = null;
 
   /** Default constructor. */
