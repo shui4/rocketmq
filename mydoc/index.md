@@ -41,7 +41,7 @@ rocketmq
 
 #### NameServer架构设计
 
-![未命名表单](img/ch2.png)
+![ch2](img/ch2.png)
 
 
 
