@@ -69,26 +69,18 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
               ResponseCode.NO_PERMISSION,
               ResponseCode.NO_BUYER_ID,
               ResponseCode.NOT_IN_CURRENT_UNIT));
-  /**
-   * Compress message body threshold, namely, message body larger than 4k will be compressed on
-   * default.
-   */
+  /** 消息体超过该值则启用压缩，默认4KB */
   private int compressMsgBodyOverHowmuch = 1024 * 4;
-  /** Just for testing or demo program */
+  /** 仅用于测试或演示程序 */
   private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
-  /** Number of queues to create per default topic. */
+  /** 每个默认主题要创建的队列数 */
   private volatile int defaultTopicQueueNums = 4;
-  /** Maximum allowed message size in bytes. */
+  /** 允许发送的最大消息长度，默认为4MB，最大值为 2^32-1 */
   private int maxMessageSize = 1024 * 1024 * 4; // 4M
-  /**
-   * Producer group conceptually aggregates all producer instances of exactly same role, which is
-   * particularly important when transactional messages are involved. For non-transactional
-   * messages, it does not matter as long as it's unique per process. See {@linktourl
-   * http://rocketmq.apache.org/docs/core-concept/} for more discussion.
-   */
+  /** 生产者组在概念上聚合了完全相同角色的所有生产者实例，这在涉及事务性消息时尤其重要。对于非事务性消息，只要它在每个进程中都是唯一的，就没有关系， */
   private String producerGroup;
-  /** Indicate whether to retry another broker on sending failure internally. */
+  /** 消息重试时选择另外一个Broker，是否不等待存储结果就返回，默认为false */
   private boolean retryAnotherBrokerWhenNotStoreOK = false;
   /**
    * Maximum number of retry to perform internally before claiming sending failure in asynchronous
@@ -96,13 +88,9 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
    * resolve.
    */
   private int retryTimesWhenSendAsyncFailed = 2;
-  /**
-   * Maximum number of retry to perform internally before claiming sending failure in synchronous
-   * mode. This may potentially cause message duplication which is up to application developers to
-   * resolve.
-   */
+  /** 在同步模式下声明发送失败之前内部执行的最大重试次数（发送一次+重试2次=3次）。这可能会导致消息重复，这取决于应用程序开发人员来解决。 */
   private int retryTimesWhenSendFailed = 2;
-  /** Timeout for sending messages. */
+  /** 发送消息的超时时间，默认为3秒 */
   private int sendMsgTimeout = 3000;
   /** Interface of asynchronous transfer data */
   private TraceDispatcher traceDispatcher = null;
