@@ -24,96 +24,107 @@ import org.apache.rocketmq.common.protocol.route.QueueData;
 import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 
 public class TopicPublishInfo {
-    private boolean orderTopic = false;
-    private boolean haveTopicRouterInfo = false;
-    private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
-    private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
-    private TopicRouteData topicRouteData;
+  /** 是否是顺序消息 */
+  private boolean orderTopic = false;
 
-    public boolean isOrderTopic() {
-        return orderTopic;
-    }
+  private boolean haveTopicRouterInfo = false;
+  /** 该主题队列的消息队列 */
+  private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
 
-    public void setOrderTopic(boolean orderTopic) {
-        this.orderTopic = orderTopic;
-    }
+  /** 每选择一次消息队列，改值会自增1，如果超过 Integer.MAX_VALUE，则重置为0，用于选择消息队列 */
+  private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
 
-    public boolean ok() {
-        return null != this.messageQueueList && !this.messageQueueList.isEmpty();
-    }
+  private TopicRouteData topicRouteData;
 
-    public List<MessageQueue> getMessageQueueList() {
-        return messageQueueList;
-    }
+  public boolean isOrderTopic() {
+    return orderTopic;
+  }
 
-    public void setMessageQueueList(List<MessageQueue> messageQueueList) {
-        this.messageQueueList = messageQueueList;
-    }
+  public void setOrderTopic(boolean orderTopic) {
+    this.orderTopic = orderTopic;
+  }
 
-    public ThreadLocalIndex getSendWhichQueue() {
-        return sendWhichQueue;
-    }
+  public boolean ok() {
+    return null != this.messageQueueList && !this.messageQueueList.isEmpty();
+  }
 
-    public void setSendWhichQueue(ThreadLocalIndex sendWhichQueue) {
-        this.sendWhichQueue = sendWhichQueue;
-    }
+  public List<MessageQueue> getMessageQueueList() {
+    return messageQueueList;
+  }
 
-    public boolean isHaveTopicRouterInfo() {
-        return haveTopicRouterInfo;
-    }
+  public void setMessageQueueList(List<MessageQueue> messageQueueList) {
+    this.messageQueueList = messageQueueList;
+  }
 
-    public void setHaveTopicRouterInfo(boolean haveTopicRouterInfo) {
-        this.haveTopicRouterInfo = haveTopicRouterInfo;
-    }
+  public ThreadLocalIndex getSendWhichQueue() {
+    return sendWhichQueue;
+  }
 
-    public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
-        if (lastBrokerName == null) {
-            return selectOneMessageQueue();
-        } else {
-            for (int i = 0; i < this.messageQueueList.size(); i++) {
-                int index = this.sendWhichQueue.incrementAndGet();
-                int pos = Math.abs(index) % this.messageQueueList.size();
-                if (pos < 0)
-                    pos = 0;
-                MessageQueue mq = this.messageQueueList.get(pos);
-                if (!mq.getBrokerName().equals(lastBrokerName)) {
-                    return mq;
-                }
-            }
-            return selectOneMessageQueue();
-        }
-    }
+  public void setSendWhichQueue(ThreadLocalIndex sendWhichQueue) {
+    this.sendWhichQueue = sendWhichQueue;
+  }
 
-    public MessageQueue selectOneMessageQueue() {
+  public boolean isHaveTopicRouterInfo() {
+    return haveTopicRouterInfo;
+  }
+
+  public void setHaveTopicRouterInfo(boolean haveTopicRouterInfo) {
+    this.haveTopicRouterInfo = haveTopicRouterInfo;
+  }
+
+  public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+    if (lastBrokerName == null) {
+      return selectOneMessageQueue();
+    } else {
+      for (int i = 0; i < this.messageQueueList.size(); i++) {
         int index = this.sendWhichQueue.incrementAndGet();
         int pos = Math.abs(index) % this.messageQueueList.size();
-        if (pos < 0)
-            pos = 0;
-        return this.messageQueueList.get(pos);
-    }
-
-    public int getQueueIdByBroker(final String brokerName) {
-        for (int i = 0; i < topicRouteData.getQueueDatas().size(); i++) {
-            final QueueData queueData = this.topicRouteData.getQueueDatas().get(i);
-            if (queueData.getBrokerName().equals(brokerName)) {
-                return queueData.getWriteQueueNums();
-            }
+        if (pos < 0) pos = 0;
+        MessageQueue mq = this.messageQueueList.get(pos);
+        if (!mq.getBrokerName().equals(lastBrokerName)) {
+          return mq;
         }
+      }
+      return selectOneMessageQueue();
+    }
+  }
 
-        return -1;
+  public MessageQueue selectOneMessageQueue() {
+    int index = this.sendWhichQueue.incrementAndGet();
+    int pos = Math.abs(index) % this.messageQueueList.size();
+    if (pos < 0) pos = 0;
+    return this.messageQueueList.get(pos);
+  }
+
+  public int getQueueIdByBroker(final String brokerName) {
+    for (int i = 0; i < topicRouteData.getQueueDatas().size(); i++) {
+      final QueueData queueData = this.topicRouteData.getQueueDatas().get(i);
+      if (queueData.getBrokerName().equals(brokerName)) {
+        return queueData.getWriteQueueNums();
+      }
     }
 
-    @Override
-    public String toString() {
-        return "TopicPublishInfo [orderTopic=" + orderTopic + ", messageQueueList=" + messageQueueList
-            + ", sendWhichQueue=" + sendWhichQueue + ", haveTopicRouterInfo=" + haveTopicRouterInfo + "]";
-    }
+    return -1;
+  }
 
-    public TopicRouteData getTopicRouteData() {
-        return topicRouteData;
-    }
+  @Override
+  public String toString() {
+    return "TopicPublishInfo [orderTopic="
+        + orderTopic
+        + ", messageQueueList="
+        + messageQueueList
+        + ", sendWhichQueue="
+        + sendWhichQueue
+        + ", haveTopicRouterInfo="
+        + haveTopicRouterInfo
+        + "]";
+  }
 
-    public void setTopicRouteData(final TopicRouteData topicRouteData) {
-        this.topicRouteData = topicRouteData;
-    }
+  public TopicRouteData getTopicRouteData() {
+    return topicRouteData;
+  }
+
+  public void setTopicRouteData(final TopicRouteData topicRouteData) {
+    this.topicRouteData = topicRouteData;
+  }
 }

@@ -913,6 +913,7 @@ public class MQClientInstance {
     try {
       if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
         try {
+          // 代码清单3-10
           TopicRouteData topicRouteData;
           if (isDefault && defaultMQProducer != null) {
             topicRouteData =
