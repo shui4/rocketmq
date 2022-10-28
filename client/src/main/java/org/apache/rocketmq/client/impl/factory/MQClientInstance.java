@@ -805,6 +805,12 @@ public class MQClientInstance {
     }
   }
 
+  /**
+   * 从namesrv更新主题路由信息
+   *
+   * @param topic ignore
+   * @return 更新成功？
+   */
   public boolean updateTopicRouteInfoFromNameServer(final String topic) {
     return updateTopicRouteInfoFromNameServer(topic, false, null);
   }
@@ -915,10 +921,13 @@ public class MQClientInstance {
         try {
           // 代码清单3-10
           TopicRouteData topicRouteData;
+          // ? 参数isDefault为true，则使用默认主题查询
           if (isDefault && defaultMQProducer != null) {
             topicRouteData =
                 this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(
                     defaultMQProducer.getCreateTopicKey(), clientConfig.getMqClientApiTimeout());
+            // ? 查询到路由
+            // 则路由信息中读写队列的个数替换为消息生产者默认的队列个数
             if (topicRouteData != null) {
               for (QueueData data : topicRouteData.getQueueDatas()) {
                 int queueNums =
@@ -927,12 +936,17 @@ public class MQClientInstance {
                 data.setWriteQueueNums(queueNums);
               }
             }
-          } else {
+          }
+          // ? 参数isDefault为false
+          // 则将使用参数topic查询，如果未查询到路由信息，则返回false，表示路由信息未变化
+          else {
             topicRouteData =
                 this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(
                     topic, clientConfig.getMqClientApiTimeout());
           }
+
           if (topicRouteData != null) {
+            // 代码清单3-11
             TopicRouteData old = this.topicRouteTable.get(topic);
             boolean changed = topicRouteDataIsChange(old, topicRouteData);
             if (!changed) {
@@ -951,6 +965,7 @@ public class MQClientInstance {
 
               // Update Pub info
               if (!producerTable.isEmpty()) {
+                // 代码清单3-12 更新MQClientInstance Broker地址缓存表
                 TopicPublishInfo publishInfo =
                     topicRouteData2TopicPublishInfo(topic, topicRouteData);
                 publishInfo.setHaveTopicRouterInfo(true);
@@ -1003,7 +1018,9 @@ public class MQClientInstance {
         } finally {
           this.lockNamesrv.unlock();
         }
-      } else {
+      }
+      // 等待3秒，获取锁失败
+      else {
         log.warn(
             "updateTopicRouteInfoFromNameServer tryLock timeout {}ms. [{}]",
             LOCK_TIMEOUT_MILLIS,
@@ -1162,7 +1179,6 @@ public class MQClientInstance {
 
     return result;
   }
-
   public static TopicPublishInfo topicRouteData2TopicPublishInfo(
       final String topic, final TopicRouteData route) {
     TopicPublishInfo info = new TopicPublishInfo();
@@ -1180,6 +1196,7 @@ public class MQClientInstance {
 
       info.setOrderTopic(true);
     } else {
+      // 代码清单3-13  将topicRouteData中的List<QueueData>转换成topicPublishInfo的List<MessageQueue>列表
       List<QueueData> qds = route.getQueueDatas();
       Collections.sort(qds);
       for (QueueData qd : qds) {

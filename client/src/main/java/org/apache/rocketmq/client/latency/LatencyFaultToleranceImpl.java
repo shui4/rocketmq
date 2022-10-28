@@ -25,168 +25,198 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.rocketmq.client.common.ThreadLocalIndex;
 
 public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> {
-    private final ConcurrentHashMap<String, FaultItem> faultItemTable = new ConcurrentHashMap<String, FaultItem>(16);
+  private final ConcurrentHashMap<String, FaultItem> faultItemTable =
+      new ConcurrentHashMap<String, FaultItem>(16);
 
-    private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
+  private final ThreadLocalIndex whichItemWorst = new ThreadLocalIndex();
+  /**
+   * 更新错误项
+   *
+   * @param name 名字
+   * @param currentLatency 目前延迟
+   * @param notAvailableDuration 不可用时间
+   */
+  // 代码清单3-18
+  // startTimestamp=System.currentTimeMillis+notAvailableDuration（需要规避的时长），它是判断Broker当前是否可用的直接依据，即
+  // FaultItem#isAvailable
+  // sendLatencyFaultEnable机制在消息发送时都能规避故障的Broker有何区别？
+  // 开启所谓的故障延时机制，即sendLatencyFaultEnable为true，其实是一种悲观的做法。当消息发送者遇到一次消息发送失败后，就会悲观地认为Broker不可用。
+  // 在接下来的一段时间内就不再向其发送消息，直接避开该Broker。而不开启延迟规避机制，就只会在本次消息发送的的重试过程中规避该Broker，下一次消息发送还是会继续尝试
+  @Override
+  public void updateFaultItem(
+      final String name, final long currentLatency, final long notAvailableDuration) {
+    // FaultItem的 startTimestamp currentLatency 是 volatile修饰
+    // 根据Broke名称从缓存表中获取FaultItem
+    FaultItem old = this.faultItemTable.get(name);
+    // ? 不存在
+    // 创建 FaultItem
+    if (null == old) {
+      final FaultItem faultItem = new FaultItem(name);
+      faultItem.setCurrentLatency(currentLatency);
+      faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
 
-    @Override
-    public void updateFaultItem(final String name, final long currentLatency, final long notAvailableDuration) {
-        FaultItem old = this.faultItemTable.get(name);
-        if (null == old) {
-            final FaultItem faultItem = new FaultItem(name);
-            faultItem.setCurrentLatency(currentLatency);
-            faultItem.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
+      old = this.faultItemTable.putIfAbsent(name, faultItem);
+      if (old != null) {
+        old.setCurrentLatency(currentLatency);
+        old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
+      }
+    }
+    // ? 缓存表中存在该 FaultItem
+    // 更新FaultItem
+    else {
+      old.setCurrentLatency(currentLatency);
+      old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
+    }
+  }
 
-            old = this.faultItemTable.putIfAbsent(name, faultItem);
-            if (old != null) {
-                old.setCurrentLatency(currentLatency);
-                old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
-            }
-        } else {
-            old.setCurrentLatency(currentLatency);
-            old.setStartTimestamp(System.currentTimeMillis() + notAvailableDuration);
-        }
+  @Override
+  public boolean isAvailable(final String name) {
+    final FaultItem faultItem = this.faultItemTable.get(name);
+    if (faultItem != null) {
+      return faultItem.isAvailable();
+    }
+    return true;
+  }
+
+  @Override
+  public void remove(final String name) {
+    this.faultItemTable.remove(name);
+  }
+
+  @Override
+  public String pickOneAtLeast() {
+    final Enumeration<FaultItem> elements = this.faultItemTable.elements();
+    List<FaultItem> tmpList = new LinkedList<FaultItem>();
+    while (elements.hasMoreElements()) {
+      final FaultItem faultItem = elements.nextElement();
+      tmpList.add(faultItem);
+    }
+
+    if (!tmpList.isEmpty()) {
+      Collections.shuffle(tmpList);
+
+      Collections.sort(tmpList);
+
+      final int half = tmpList.size() / 2;
+      if (half <= 0) {
+        return tmpList.get(0).getName();
+      } else {
+        final int i = this.whichItemWorst.incrementAndGet() % half;
+        return tmpList.get(i).getName();
+      }
+    }
+
+    return null;
+  }
+
+  @Override
+  public String toString() {
+    return "LatencyFaultToleranceImpl{"
+        + "faultItemTable="
+        + faultItemTable
+        + ", whichItemWorst="
+        + whichItemWorst
+        + '}';
+  }
+
+  /** 失败条目（规避规则条目） */
+  class FaultItem implements Comparable<FaultItem> {
+    /** 条目唯一键，这里为Broker */
+    private final String name;
+    /**
+     * 本次消息发送的延迟时间<br>
+     * volatile
+     */
+    private volatile long currentLatency;
+
+    /**
+     * 故障规避的开始时间<br>
+     * volatile
+     */
+    private volatile long startTimestamp;
+
+    public FaultItem(final String name) {
+      this.name = name;
     }
 
     @Override
-    public boolean isAvailable(final String name) {
-        final FaultItem faultItem = this.faultItemTable.get(name);
-        if (faultItem != null) {
-            return faultItem.isAvailable();
-        }
-        return true;
+    public int compareTo(final FaultItem other) {
+      if (this.isAvailable() != other.isAvailable()) {
+        if (this.isAvailable()) return -1;
+
+        if (other.isAvailable()) return 1;
+      }
+
+      if (this.currentLatency < other.currentLatency) return -1;
+      else if (this.currentLatency > other.currentLatency) {
+        return 1;
+      }
+
+      if (this.startTimestamp < other.startTimestamp) return -1;
+      else if (this.startTimestamp > other.startTimestamp) {
+        return 1;
+      }
+
+      return 0;
+    }
+
+    public boolean isAvailable() {
+      return (System.currentTimeMillis() - startTimestamp) >= 0;
     }
 
     @Override
-    public void remove(final String name) {
-        this.faultItemTable.remove(name);
+    public int hashCode() {
+      int result = getName() != null ? getName().hashCode() : 0;
+      result = 31 * result + (int) (getCurrentLatency() ^ (getCurrentLatency() >>> 32));
+      result = 31 * result + (int) (getStartTimestamp() ^ (getStartTimestamp() >>> 32));
+      return result;
     }
 
     @Override
-    public String pickOneAtLeast() {
-        final Enumeration<FaultItem> elements = this.faultItemTable.elements();
-        List<FaultItem> tmpList = new LinkedList<FaultItem>();
-        while (elements.hasMoreElements()) {
-            final FaultItem faultItem = elements.nextElement();
-            tmpList.add(faultItem);
-        }
+    public boolean equals(final Object o) {
+      if (this == o) return true;
+      if (!(o instanceof FaultItem)) return false;
 
-        if (!tmpList.isEmpty()) {
-            Collections.shuffle(tmpList);
+      final FaultItem faultItem = (FaultItem) o;
 
-            Collections.sort(tmpList);
-
-            final int half = tmpList.size() / 2;
-            if (half <= 0) {
-                return tmpList.get(0).getName();
-            } else {
-                final int i = this.whichItemWorst.incrementAndGet() % half;
-                return tmpList.get(i).getName();
-            }
-        }
-
-        return null;
+      if (getCurrentLatency() != faultItem.getCurrentLatency()) return false;
+      if (getStartTimestamp() != faultItem.getStartTimestamp()) return false;
+      return getName() != null
+          ? getName().equals(faultItem.getName())
+          : faultItem.getName() == null;
     }
 
     @Override
     public String toString() {
-        return "LatencyFaultToleranceImpl{" +
-            "faultItemTable=" + faultItemTable +
-            ", whichItemWorst=" + whichItemWorst +
-            '}';
+      return "FaultItem{"
+          + "name='"
+          + name
+          + '\''
+          + ", currentLatency="
+          + currentLatency
+          + ", startTimestamp="
+          + startTimestamp
+          + '}';
     }
 
-    class FaultItem implements Comparable<FaultItem> {
-        private final String name;
-        private volatile long currentLatency;
-        private volatile long startTimestamp;
-
-        public FaultItem(final String name) {
-            this.name = name;
-        }
-
-        @Override
-        public int compareTo(final FaultItem other) {
-            if (this.isAvailable() != other.isAvailable()) {
-                if (this.isAvailable())
-                    return -1;
-
-                if (other.isAvailable())
-                    return 1;
-            }
-
-            if (this.currentLatency < other.currentLatency)
-                return -1;
-            else if (this.currentLatency > other.currentLatency) {
-                return 1;
-            }
-
-            if (this.startTimestamp < other.startTimestamp)
-                return -1;
-            else if (this.startTimestamp > other.startTimestamp) {
-                return 1;
-            }
-
-            return 0;
-        }
-
-        public boolean isAvailable() {
-            return (System.currentTimeMillis() - startTimestamp) >= 0;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = getName() != null ? getName().hashCode() : 0;
-            result = 31 * result + (int) (getCurrentLatency() ^ (getCurrentLatency() >>> 32));
-            result = 31 * result + (int) (getStartTimestamp() ^ (getStartTimestamp() >>> 32));
-            return result;
-        }
-
-        @Override
-        public boolean equals(final Object o) {
-            if (this == o)
-                return true;
-            if (!(o instanceof FaultItem))
-                return false;
-
-            final FaultItem faultItem = (FaultItem) o;
-
-            if (getCurrentLatency() != faultItem.getCurrentLatency())
-                return false;
-            if (getStartTimestamp() != faultItem.getStartTimestamp())
-                return false;
-            return getName() != null ? getName().equals(faultItem.getName()) : faultItem.getName() == null;
-
-        }
-
-        @Override
-        public String toString() {
-            return "FaultItem{" +
-                "name='" + name + '\'' +
-                ", currentLatency=" + currentLatency +
-                ", startTimestamp=" + startTimestamp +
-                '}';
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public long getCurrentLatency() {
-            return currentLatency;
-        }
-
-        public void setCurrentLatency(final long currentLatency) {
-            this.currentLatency = currentLatency;
-        }
-
-        public long getStartTimestamp() {
-            return startTimestamp;
-        }
-
-        public void setStartTimestamp(final long startTimestamp) {
-            this.startTimestamp = startTimestamp;
-        }
-
+    public String getName() {
+      return name;
     }
+
+    public long getCurrentLatency() {
+      return currentLatency;
+    }
+
+    public void setCurrentLatency(final long currentLatency) {
+      this.currentLatency = currentLatency;
+    }
+
+    public long getStartTimestamp() {
+      return startTimestamp;
+    }
+
+    public void setStartTimestamp(final long startTimestamp) {
+      this.startTimestamp = startTimestamp;
+    }
+  }
 }

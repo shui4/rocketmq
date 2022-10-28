@@ -372,6 +372,7 @@ public class DefaultRequestProcessor extends AsyncNettyRequestProcessor
     // TopicRouteData 为响应
     // 从路由表topicQueueTable、         brokerAddrTable、filterServerTable中分别填充
     // TopicRouteData：List<QueueData> List<BrokerData>  filterServer
+    // 拉取主题路由数据
     TopicRouteData topicRouteData =
         this.namesrvController.getRouteInfoManager().pickupTopicRouteData(requestHeader.getTopic());
     // ? 找到主题对应路由信息

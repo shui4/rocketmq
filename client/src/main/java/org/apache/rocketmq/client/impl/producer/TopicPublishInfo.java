@@ -26,7 +26,7 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 public class TopicPublishInfo {
   /** 是否是顺序消息 */
   private boolean orderTopic = false;
-
+  /** 是否有主题路由信息 */
   private boolean haveTopicRouterInfo = false;
   /** 该主题队列的消息队列 */
   private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
@@ -81,6 +81,7 @@ public class TopicPublishInfo {
         int pos = Math.abs(index) % this.messageQueueList.size();
         if (pos < 0) pos = 0;
         MessageQueue mq = this.messageQueueList.get(pos);
+        // 暂时排除在消息队列的选择范围中
         if (!mq.getBrokerName().equals(lastBrokerName)) {
           return mq;
         }
