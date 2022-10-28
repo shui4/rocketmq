@@ -918,11 +918,14 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     throw new RuntimeException(
         "sendMessageInTransaction not implement, please use TransactionMQProducer class");
   }
-
+  // 代码清单3-29 消息批量发送
   @Override
   public SendResult send(Collection<Message> msgs)
       throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-    return this.defaultMQProducerImpl.send(batch(msgs));
+    // 将消息封装成 MessageBatch，MessageBatch是Message的子类，内部持有List<Message>，这样一来，批量消息发送与单挑消息发送的处理流程就 完成一样了。
+    // MessageBatch只需要将该集合中每条消息的消息体聚合成一个byte[]数组，在消息服务端能够从改byte[]数组中正确解析出消息
+    MessageBatch messageBatch = batch(msgs);
+    return this.defaultMQProducerImpl.send(messageBatch);
   }
 
   @Override
