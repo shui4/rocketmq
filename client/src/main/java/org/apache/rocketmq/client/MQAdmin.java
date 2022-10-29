@@ -46,7 +46,7 @@ public interface MQAdmin {
       throws MQClientException;
 
   /**
-   * 根啹某个时间（以事秒为单位）获取消息队列偏移量<br>
+   * 根据某个时间（以事秒为单位）获取消息队列偏移量<br>
    * 由于更多的IO开销，请谨慎调用
    *
    * @param mq Instance of MessageQueue
@@ -56,7 +56,7 @@ public interface MQAdmin {
   long searchOffset(final MessageQueue mq, final long timestamp) throws MQClientException;
 
   /**
-   * 查找该消息队列中最大的物流偏移量
+   * 查找该消息队列中最大的物理偏移量
    *
    * @param mq Instance of MessageQueue
    * @return the max offset
@@ -64,7 +64,7 @@ public interface MQAdmin {
   long maxOffset(final MessageQueue mq) throws MQClientException;
 
   /**
-   * 查找该消息队列中最小的物流偏移量
+   * 查找该消息队列中最小的物理偏移量
    *
    * @param mq Instance of MessageQueue
    * @return the minimum offset
@@ -72,7 +72,7 @@ public interface MQAdmin {
   long minOffset(final MessageQueue mq) throws MQClientException;
 
   /**
-   * Gets the earliest stored message time
+   * 获取最早存储的消息时间
    *
    * @param mq Instance of MessageQueue
    * @return the time in microseconds
@@ -87,7 +87,13 @@ public interface MQAdmin {
    */
   MessageExt viewMessage(final String offsetMsgId)
       throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
-
+  /**
+   * 根据消息主题与消息ID查找消息
+   *
+   * @return The {@code MessageExt} of given msgId
+   */
+  MessageExt viewMessage(String topic, String msgId)
+      throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
   /**
    * 根据条件查找消息
    *
@@ -101,12 +107,4 @@ public interface MQAdmin {
   QueryResult queryMessage(
       final String topic, final String key, final int maxNum, final long begin, final long end)
       throws MQClientException, InterruptedException;
-
-  /**
-   * 根据消息主题与消息ID查找消息
-   *
-   * @return The {@code MessageExt} of given msgId
-   */
-  MessageExt viewMessage(String topic, String msgId)
-      throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 }

@@ -42,6 +42,7 @@ public class Message implements Serializable {
   }
 
   /**
+   * 代码清单3-1 Message全属性构造函数
    * @param topic 消息主题
    * @param tags 消息tag，用于消息过滤
    * @param keys 消息索引键，用空格隔开，RocketMQ可以根据这些key快速检索消息
