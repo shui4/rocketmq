@@ -44,9 +44,11 @@ public class MQClientManager {
   // 代码清单3-5
   public MQClientInstance getOrCreateMQClientInstance(
       final ClientConfig clientConfig, RPCHook rpcHook) {
+    // 构建 clientId：客户端IP+instance+unit name（可选）
     String clientId = clientConfig.buildMQClientId();
     MQClientInstance instance = this.factoryTable.get(clientId);
     if (null == instance) {
+      // 创建 MQClientInstance实例。整个JVM实例中只 存在一个MQClientManager实例，维护一个MQClientInstance缓存表
       instance =
           new MQClientInstance(
               clientConfig.cloneClientConfig(),

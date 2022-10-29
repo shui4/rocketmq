@@ -197,10 +197,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
           this.defaultMQProducer.changeInstanceNameToPID();
         }
         // 代码清单3-4
+        // 获取或创建 MQ 客户端实例
         this.mQClientFactory =
             MQClientManager.getInstance()
                 .getOrCreateMQClientInstance(this.defaultMQProducer, rpcHook);
         // 代码清单3-7
+        // 注册生产者
         boolean registerOK =
             mQClientFactory.registerProducer(this.defaultMQProducer.getProducerGroup(), this);
         if (!registerOK) {
@@ -217,6 +219,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             this.defaultMQProducer.getCreateTopicKey(), new TopicPublishInfo());
 
         if (startFactory) {
+          // 启动 MQClientInstance
           mQClientFactory.start();
         }
 
@@ -237,9 +240,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
       default:
         break;
     }
-
+    // 向所有Broker发送心跳
     this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();
-
+    // 启动 异步send的定时任务，用于异步执行回调
     RequestFutureHolder.getInstance().startScheduledTask(this);
   }
 

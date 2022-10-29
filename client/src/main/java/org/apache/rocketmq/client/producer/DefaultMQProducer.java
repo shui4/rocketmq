@@ -56,35 +56,48 @@ import java.util.concurrent.ExecutorService;
  */
 public class DefaultMQProducer extends ClientConfig implements MQProducer {
 
-  /** Wrapping internal implementations for virtually all methods presented in this class. */
+  /** 默认mqproducer impl */
   protected final transient DefaultMQProducerImpl defaultMQProducerImpl;
 
   private final InternalLogger log = ClientLogger.getLog();
+  /** 重试响应Code Set */
   private final Set<Integer> retryResponseCodes =
       new CopyOnWriteArraySet<Integer>(
           Arrays.asList(
+              // 主题不存在
               ResponseCode.TOPIC_NOT_EXIST,
+              // 服务不可用
               ResponseCode.SERVICE_NOT_AVAILABLE,
+              // 系统错误
               ResponseCode.SYSTEM_ERROR,
+              // 没有权限
               ResponseCode.NO_PERMISSION,
+              // 没有 buyer id
               ResponseCode.NO_BUYER_ID,
+              // 不在当前单位
               ResponseCode.NOT_IN_CURRENT_UNIT));
   /** 消息体超过该值则启用压缩，默认4KB */
   private int compressMsgBodyOverHowmuch = 1024 * 4;
-  /** 仅用于测试或演示程序 */
+  /** 仅用于测试或演示程序（默认topicKey） */
   private String createTopicKey = TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC;
 
   /** 每个默认主题要创建的队列数 */
   private volatile int defaultTopicQueueNums = 4;
   /** 允许发送的最大消息长度，默认为4MB，最大值为 2^32-1 */
   private int maxMessageSize = 1024 * 1024 * 4; // 4M
-  /** 生产者组在概念上聚合了完全相同角色的所有生产者实例，这在涉及事务性消息时尤其重要。对于非事务性消息，只要它在每个进程中都是唯一的，就没有关系， */
+  /**
+   * 生产者组在概念上聚合了完全相同角色的所有生产者实例，这在涉及事务性消息时尤其重要。<br>
+   * 对于非事务性消息，只要它在每个进程中都是唯一的，就没有关系，
+   */
   private String producerGroup;
   /** 消息重试时选择另外一个Broker，是否不等待存储结果就返回，默认为false */
   private boolean retryAnotherBrokerWhenNotStoreOK = false;
   /** 在异步模式下声明发送失败之前内部执行的最大重试次数。这可能会导致消息重复，这取决于应用程序开发人员来解决。 */
   private int retryTimesWhenSendAsyncFailed = 2;
-  /** 在同步模式下声明发送失败之前内部执行的最大重试次数（发送一次+重试2次=3次）。这可能会导致消息重复，这取决于应用程序开发人员来解决。 */
+  /**
+   * 在同步模式下声明发送失败之前内部执行的最大重试次数（发送一次+重试2次=3次）。<br>
+   * 这可能会导致消息重复，这取决于应用程序开发人员来解决。
+   */
   private int retryTimesWhenSendFailed = 2;
   /** 发送消息的超时时间，默认为3秒 */
   private int sendMsgTimeout = 3000;
@@ -444,6 +457,11 @@ public class DefaultMQProducer extends ClientConfig implements MQProducer {
     return this.defaultMQProducerImpl.getNotAvailableDuration();
   }
 
+  /**
+   * 设置 不可用时长
+   *
+   * @param notAvailableDuration ignore
+   */
   public void setNotAvailableDuration(final long[] notAvailableDuration) {
     this.defaultMQProducerImpl.setNotAvailableDuration(notAvailableDuration);
   }

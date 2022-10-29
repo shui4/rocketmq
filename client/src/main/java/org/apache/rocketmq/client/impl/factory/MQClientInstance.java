@@ -101,6 +101,7 @@ public class MQClientInstance {
             }
           });
   private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
+  // Topic路由信息表
   private final ConcurrentMap<String /* Topic */, TopicRouteData> topicRouteTable =
       new ConcurrentHashMap<String, TopicRouteData>();
   private Random random = new Random();
@@ -566,7 +567,7 @@ public class MQClientInstance {
           if (null == this.clientConfig.getNamesrvAddr()) {
             this.mQClientAPIImpl.fetchNameServerAddr();
           }
-          // 启动请求-响应通道
+          // 启动请求-响应通道（Netty相关）
           this.mQClientAPIImpl.start();
           // 启动各种计划任务
           this.startScheduledTask();
@@ -591,13 +592,14 @@ public class MQClientInstance {
   }
 
   private void startScheduledTask() {
+    // 如果Producer未设置NameServer Address，则 执行 获取名称服务器地址
     if (null == this.clientConfig.getNamesrvAddr()) {
       this.scheduledExecutorService.scheduleAtFixedRate(
           new Runnable() {
-
             @Override
             public void run() {
               try {
+                // 这是付费版本RocketMQ的一个功能，这样可以做到线上扩容NameServer
                 MQClientInstance.this.mQClientAPIImpl.fetchNameServerAddr();
               } catch (Exception e) {
                 log.error("ScheduledTask fetchNameServerAddr exception", e);
@@ -608,7 +610,7 @@ public class MQClientInstance {
           1000 * 60 * 2,
           TimeUnit.MILLISECONDS);
     }
-
+    // 每30秒从NameServer中获取最新的Topic路由信息
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -624,7 +626,7 @@ public class MQClientInstance {
         10,
         this.clientConfig.getPollNameServerInterval(),
         TimeUnit.MILLISECONDS);
-
+    // 定时任务默认30秒 清理离线的Broker、然后再向所有Broker发送心跳
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -642,6 +644,7 @@ public class MQClientInstance {
         this.clientConfig.getHeartbeatBrokerInterval(),
         TimeUnit.MILLISECONDS);
 
+    // 持久化所有消费者偏移量
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -657,7 +660,7 @@ public class MQClientInstance {
         1000 * 10,
         this.clientConfig.getPersistConsumerOffsetInterval(),
         TimeUnit.MILLISECONDS);
-
+    // 调整线程池
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -917,6 +920,7 @@ public class MQClientInstance {
   public boolean updateTopicRouteInfoFromNameServer(
       final String topic, boolean isDefault, DefaultMQProducer defaultMQProducer) {
     try {
+      // 上锁，如果没抢到锁，默认等待3秒
       if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
         try {
           // 代码清单3-10
@@ -938,7 +942,7 @@ public class MQClientInstance {
             }
           }
           // ? 参数isDefault为false
-          // 则将使用参数topic查询，如果未查询到路由信息，则返回false，表示路由信息未变化
+          // 则将使用参数topic查询
           else {
             topicRouteData =
                 this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(
@@ -1001,18 +1005,24 @@ public class MQClientInstance {
               this.topicRouteTable.put(topic, cloneTopicRouteData);
               return true;
             }
-          } else {
+          }
+          // 如果未查询到路由信息，则返回false，表示路由信息未变化
+          else {
             log.warn(
                 "updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}. [{}]",
                 topic,
                 this.clientId);
           }
-        } catch (MQClientException e) {
+        }
+        // Topic从Nameserver中没有找到，即ResponseCode.TOPIC_NOT_EXIST
+        catch (MQClientException e) {
           if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)
               && !topic.equals(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
             log.warn("updateTopicRouteInfoFromNameServer Exception", e);
           }
-        } catch (RemotingException e) {
+        }
+        // 超时：clientConfig.getMqClientApiTimeout()
+        catch (RemotingException e) {
           log.error("updateTopicRouteInfoFromNameServer Exception", e);
           throw new IllegalStateException(e);
         } finally {
@@ -1029,7 +1039,7 @@ public class MQClientInstance {
     } catch (InterruptedException e) {
       log.warn("updateTopicRouteInfoFromNameServer Exception", e);
     }
-
+    // 等待3秒还没获取到、或者捕获到相关异常
     return false;
   }
 
@@ -1179,6 +1189,7 @@ public class MQClientInstance {
 
     return result;
   }
+
   public static TopicPublishInfo topicRouteData2TopicPublishInfo(
       final String topic, final TopicRouteData route) {
     TopicPublishInfo info = new TopicPublishInfo();
