@@ -34,6 +34,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.rocketmq.client.QueryResult;
 import org.apache.rocketmq.client.Validators;
 import org.apache.rocketmq.client.common.ClientErrorCode;
@@ -519,12 +520,12 @@ public class DefaultMQProducerImpl implements MQProducerInner {
   }
 
   /**
-   * @deprecated It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of
-   *     timeout. A new one will be provided in next version
    * @param msg
    * @param sendCallback
    * @param timeout the <code>sendCallback</code> will be invoked at most time
    * @throws RejectedExecutionException
+   * @deprecated It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of
+   *     timeout. A new one will be provided in next version
    */
   @Deprecated
   public void send(final Message msg, final SendCallback sendCallback, final long timeout)
@@ -553,6 +554,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
       throw new MQClientException("executor rejected ", e);
     }
   }
+
   /**
    * 选择一个消息队列
    *
@@ -634,7 +636,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
               callTimeout = true;
               break;
             }
-
+            // 发现消息
             sendResult =
                 this.sendKernelImpl(
                     msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
@@ -760,6 +762,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             null)
         .setResponseCode(ClientErrorCode.NOT_FOUND_TOPIC_EXCEPTION);
   }
+
   // 代码清单3-9
   // 在发送消息之前，需要获取主题的路由信息，只有获取了这些信息Producer才能知道消息具体要发送到哪个Broker节点上
   // 该方法是查找主题的路由信息的方法。如果生产者缓存了topic路由信息，且该路由信息包含消息队列，则直接返回该路由信息。
@@ -782,6 +785,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
       return topicPublishInfo;
     }
   }
+
   /**
    * 代码清单3-20 消息发送API和核心入口
    *
@@ -1164,8 +1168,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
   }
 
   /**
-   * @deprecated It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of
-   *     timeout. A new one will be provided in next version
    * @param msg
    * @param mq
    * @param sendCallback
@@ -1173,6 +1175,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
    * @throws MQClientException
    * @throws RemotingException
    * @throws InterruptedException
+   * @deprecated It will be removed at 4.4.0 cause for exception handling and the wrong Semantics of
+   *     timeout. A new one will be provided in next version
    */
   @Deprecated
   public void send(
