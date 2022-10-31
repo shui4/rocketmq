@@ -948,7 +948,8 @@ public class MQClientInstance {
                 this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(
                     topic, clientConfig.getMqClientApiTimeout());
           }
-
+          //  ? 从NameServer获取到路由信息，
+          // 存在到缓存中，返回true
           if (topicRouteData != null) {
             // 代码清单3-11
             TopicRouteData old = this.topicRouteTable.get(topic);

@@ -93,6 +93,7 @@ public class LatencyFaultToleranceImpl implements LatencyFaultTolerance<String> 
     }
 
     if (!tmpList.isEmpty()) {
+      // 洗牌
       Collections.shuffle(tmpList);
 
       Collections.sort(tmpList);

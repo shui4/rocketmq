@@ -71,7 +71,7 @@ public class TopicPublishInfo {
   public void setHaveTopicRouterInfo(boolean haveTopicRouterInfo) {
     this.haveTopicRouterInfo = haveTopicRouterInfo;
   }
-
+  // 代码清单3-14
   public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
     if (lastBrokerName == null) {
       return selectOneMessageQueue();

@@ -562,7 +562,6 @@ public class DefaultMQProducerImpl implements MQProducerInner {
    * @param lastBrokerName 上一次选择的执行发送消息失败的Broker，第一次执行该方法时为 null
    * @return {@link MessageQueue}
    */
-  // 代码清单3-14
   public MessageQueue selectOneMessageQueue(
       final TopicPublishInfo tpInfo, final String lastBrokerName) {
     return this.mqFaultStrategy.selectOneMessageQueue(tpInfo, lastBrokerName);
@@ -592,6 +591,9 @@ public class DefaultMQProducerImpl implements MQProducerInner {
     }
   }
 
+  /**
+   * @param timeout 超时(默认3秒)
+   */
   private SendResult sendDefaultImpl(
       Message msg,
       final CommunicationMode communicationMode,
@@ -599,7 +601,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
       final long timeout)
       throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
     this.makeSureStateOK();
-    // 禁止将消息发送到系统Topic上
+    // 禁止将消息发送到系统Topic上、消息不能超过 maxMessageSize（默认4MB）...
     Validators.checkMessage(msg, this.defaultMQProducer);
     final long invokeID = random.nextLong();
     long beginTimestampFirst = System.currentTimeMillis();
@@ -620,6 +622,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
       String[] brokersSent = new String[timesTotal];
       for (; times < timesTotal; times++) {
         String lastBrokerName = null == mq ? null : mq.getBrokerName();
+        // 选择一个消息队列（尽量避免发送到同一个Broker机器，但实在没办法那还是会被选）
         MessageQueue mqSelected = this.selectOneMessageQueue(topicPublishInfo, lastBrokerName);
         if (mqSelected != null) {
           mq = mqSelected;
@@ -629,6 +632,7 @@ public class DefaultMQProducerImpl implements MQProducerInner {
             beginTimestampPrev = System.currentTimeMillis();
             if (times > 0) {
               // Reset topic with namespace during resend.
+              // 在重新发送期间使用命名空间重置主题
               msg.setTopic(this.defaultMQProducer.withNamespace(msg.getTopic()));
             }
             long costTime = beginTimestampPrev - beginTimestampFirst;
@@ -641,6 +645,8 @@ public class DefaultMQProducerImpl implements MQProducerInner {
                 this.sendKernelImpl(
                     msg, mq, communicationMode, sendCallback, topicPublishInfo, timeout - costTime);
             endTimestamp = System.currentTimeMillis();
+            // 更新故障项，注意：当发送消息需要很长时间时，也会被规避，具体 根据MQFaultStrategy#computeNotAvailableDuration，当超过
+            // 550毫秒开始...
             this.updateFaultItem(mq.getBrokerName(), endTimestamp - beginTimestampPrev, false);
             switch (communicationMode) {
               case ASYNC:

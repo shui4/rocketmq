@@ -15,6 +15,8 @@ public class Producer {
   public static void main(String[] args) throws Exception {
     // Instantiate with a producer group name.
     DefaultMQProducer producer = new DefaultMQProducer("test");
+    // 开起故障延迟机制
+    producer.setSendLatencyFaultEnable(true);
     // 当一个Jvm需要启动多个Producer的时候，通过设置不同的InstanceName来区分，不设置的话系统使用默认名称 “Default”
     producer.setInstanceName("instance");
     // 设置发送重试次数，当网络出现异常的时候，这个次数影响消息的重复投递次数。想保不丢失消息，可以设置多重复几次
@@ -45,8 +47,7 @@ public class Producer {
             // 状态含义
             //            sendResult.getSendStatus();
             //          System.out.printf("%s%n", sendResult);
-            
-            
+
             // 异步发送
             producer.send(
                 msg,
