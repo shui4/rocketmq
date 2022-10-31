@@ -197,11 +197,11 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
               + "] sending message is forbidden");
       return response;
     }
-    // 检查Topic是否存在非法命名
+    // 检查Topic是否存在非法
     if (!TopicValidator.validateTopic(requestHeader.getTopic(), response)) {
       return response;
     }
-    // 检查Topic是否可以进行消息发送。主要针对默认主题，默认主题不能发送消息，仅供路由查找
+    // 检查Topic是否可以进行消息发送。主要针对默认主题（系统主题），默认主题不能发送消息，仅供路由查找
     if (TopicValidator.isNotAllowedSendTopic(requestHeader.getTopic(), response)) {
       return response;
     }
@@ -259,6 +259,7 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
     }
 
     int queueIdInt = requestHeader.getQueueId();
+    // queueId 超过 最大数量？这合理吗？queueId是从0自增的，正常不会超过，除非是有人捣乱
     int idValid = Math.max(topicConfig.getWriteQueueNums(), topicConfig.getReadQueueNums());
     if (queueIdInt >= idValid) {
       String errorInfo =

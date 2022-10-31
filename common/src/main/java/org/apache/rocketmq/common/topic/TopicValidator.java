@@ -96,19 +96,19 @@ public class TopicValidator {
     }
 
     public static boolean validateTopic(String topic, RemotingCommand response) {
-
+        // 空主题
         if (UtilAll.isBlank(topic)) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("The specified topic is blank.");
             return false;
         }
-
+        // 主题非法命名
         if (isTopicOrGroupIllegal(topic)) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("The specified topic contains illegal characters, allowing only ^[%|a-zA-Z0-9_-]+$");
             return false;
         }
-
+        // 主题字符超过127
         if (topic.length() > TOPIC_MAX_LENGTH) {
             response.setCode(ResponseCode.SYSTEM_ERROR);
             response.setRemark("The specified topic is longer than topic max length.");

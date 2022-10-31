@@ -49,20 +49,21 @@ public class Producer {
             //          System.out.printf("%s%n", sendResult);
 
             // 异步发送
-            producer.send(
-                msg,
-                new SendCallback() {
-                  @Override
-                  public void onSuccess(SendResult sendResult) {
-                    System.out.printf("%s%n", sendResult);
-                    //              sendResult.getSendStatus();
-                  }
+            /* producer.send(
+            msg,
+            new SendCallback() {
+              @Override
+              public void onSuccess(SendResult sendResult) {
+                System.out.printf("%s%n", sendResult);
+                //              sendResult.getSendStatus();
+              }
 
-                  @Override
-                  public void onException(Throwable e) {
-                    e.printStackTrace();
-                  }
-                });
+              @Override
+              public void onException(Throwable e) {
+                e.printStackTrace();
+              }
+            });*/
+            producer.send(msg);
           } catch (UnsupportedEncodingException
               | MQClientException
               | RemotingException

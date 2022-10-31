@@ -927,67 +927,71 @@ public class DefaultMQProducerImpl implements MQProducerInner {
         // 根据消息发送方式（同步、异步、单向）进行网络传输
         switch (communicationMode) {
           case ASYNC:
-            Message tmpMessage = msg;
-            boolean messageCloned = false;
-            if (msgBodyCompressed) {
-              // If msg body was compressed, msgbody should be reset using prevBody.
-              // Clone new message using commpressed message body and recover origin massage.
-              // Fix bug:https://github.com/apache/rocketmq-externals/issues/66
-              tmpMessage = MessageAccessor.cloneMessage(msg);
-              messageCloned = true;
-              msg.setBody(prevBody);
-            }
-
-            if (topicWithNamespace) {
-              if (!messageCloned) {
+            {
+              Message tmpMessage = msg;
+              boolean messageCloned = false;
+              if (msgBodyCompressed) {
+                // If msg body was compressed, msgbody should be reset using prevBody.
+                // Clone new message using commpressed message body and recover origin massage.
+                // Fix bug:https://github.com/apache/rocketmq-externals/issues/66
                 tmpMessage = MessageAccessor.cloneMessage(msg);
                 messageCloned = true;
+                msg.setBody(prevBody);
               }
-              msg.setTopic(
-                  NamespaceUtil.withoutNamespace(
-                      msg.getTopic(), this.defaultMQProducer.getNamespace()));
-            }
 
-            long costTimeAsync = System.currentTimeMillis() - beginStartTime;
-            if (timeout < costTimeAsync) {
-              throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+              if (topicWithNamespace) {
+                if (!messageCloned) {
+                  tmpMessage = MessageAccessor.cloneMessage(msg);
+                  messageCloned = true;
+                }
+                msg.setTopic(
+                    NamespaceUtil.withoutNamespace(
+                        msg.getTopic(), this.defaultMQProducer.getNamespace()));
+              }
+
+              long costTimeAsync = System.currentTimeMillis() - beginStartTime;
+              if (timeout < costTimeAsync) {
+                throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+              }
+              sendResult =
+                  this.mQClientFactory
+                      .getMQClientAPIImpl()
+                      .sendMessage(
+                          brokerAddr,
+                          mq.getBrokerName(),
+                          tmpMessage,
+                          requestHeader,
+                          timeout - costTimeAsync,
+                          communicationMode,
+                          sendCallback,
+                          topicPublishInfo,
+                          this.mQClientFactory,
+                          this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(),
+                          context,
+                          this);
+              break;
             }
-            sendResult =
-                this.mQClientFactory
-                    .getMQClientAPIImpl()
-                    .sendMessage(
-                        brokerAddr,
-                        mq.getBrokerName(),
-                        tmpMessage,
-                        requestHeader,
-                        timeout - costTimeAsync,
-                        communicationMode,
-                        sendCallback,
-                        topicPublishInfo,
-                        this.mQClientFactory,
-                        this.defaultMQProducer.getRetryTimesWhenSendAsyncFailed(),
-                        context,
-                        this);
-            break;
           case ONEWAY:
           case SYNC:
-            long costTimeSync = System.currentTimeMillis() - beginStartTime;
-            if (timeout < costTimeSync) {
-              throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+            {
+              long costTimeSync = System.currentTimeMillis() - beginStartTime;
+              if (timeout < costTimeSync) {
+                throw new RemotingTooMuchRequestException("sendKernelImpl call timeout");
+              }
+              sendResult =
+                  this.mQClientFactory
+                      .getMQClientAPIImpl()
+                      .sendMessage(
+                          brokerAddr,
+                          mq.getBrokerName(),
+                          msg,
+                          requestHeader,
+                          timeout - costTimeSync,
+                          communicationMode,
+                          context,
+                          this);
+              break;
             }
-            sendResult =
-                this.mQClientFactory
-                    .getMQClientAPIImpl()
-                    .sendMessage(
-                        brokerAddr,
-                        mq.getBrokerName(),
-                        msg,
-                        requestHeader,
-                        timeout - costTimeSync,
-                        communicationMode,
-                        context,
-                        this);
-            break;
           default:
             assert false;
             break;

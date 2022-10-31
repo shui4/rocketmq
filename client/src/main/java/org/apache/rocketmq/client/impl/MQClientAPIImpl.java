@@ -532,6 +532,7 @@ public class MQClientAPIImpl {
     long beginStartTime = System.currentTimeMillis();
     RemotingCommand request = null;
     String msgType = msg.getProperty(MessageConst.PROPERTY_MESSAGE_TYPE);
+    // ? 重试消息
     boolean isReply = msgType != null && msgType.equals(MixAll.REPLY_MESSAGE_FLAG);
     if (isReply) {
       if (sendSmartMsg) {
@@ -545,6 +546,7 @@ public class MQClientAPIImpl {
             RemotingCommand.createRequestCommand(RequestCode.SEND_REPLY_MESSAGE, requestHeader);
       }
     } else {
+      // sendSmartMsg 默认为true
       if (sendSmartMsg || msg instanceof MessageBatch) {
         SendMessageRequestHeaderV2 requestHeaderV2 =
             SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
