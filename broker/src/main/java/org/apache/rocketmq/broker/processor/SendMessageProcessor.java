@@ -361,6 +361,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
 
     CompletableFuture<PutMessageResult> putMessageResult = null;
     String transFlag = origProps.get(MessageConst.PROPERTY_TRANSACTION_PREPARED);
+    // ? 事物消息
     if (transFlag != null && Boolean.parseBoolean(transFlag)) {
       if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
         response.setCode(ResponseCode.NO_PERMISSION);

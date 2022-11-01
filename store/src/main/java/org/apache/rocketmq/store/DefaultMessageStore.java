@@ -487,9 +487,9 @@ public class DefaultMessageStore implements MessageStore {
     }
     return false;
   }
-
   @Override
   public CompletableFuture<PutMessageResult> asyncPutMessage(MessageExtBrokerInner msg) {
+    //region 检查状态
     PutMessageStatus checkStoreStatus = this.checkStoreStatus();
     if (checkStoreStatus != PutMessageStatus.PUT_OK) {
       return CompletableFuture.completedFuture(new PutMessageResult(checkStoreStatus, null));
@@ -504,6 +504,7 @@ public class DefaultMessageStore implements MessageStore {
     if (msgCheckStatus == PutMessageStatus.LMQ_CONSUME_QUEUE_NUM_EXCEEDED) {
       return CompletableFuture.completedFuture(new PutMessageResult(lmqMsgCheckStatus, null));
     }
+    //endregion
 
     long beginTime = this.getSystemClock().now();
     CompletableFuture<PutMessageResult> putResultFuture = this.commitLog.asyncPutMessage(msg);

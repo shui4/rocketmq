@@ -647,9 +647,11 @@ public class CommitLog {
 
   public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
     // Set the storage time
+    // 设置存储时间
     msg.setStoreTimestamp(System.currentTimeMillis());
     // Set the message body BODY CRC (consider the most appropriate setting
     // on the client)
+    // 设置消息体 BODY CRC（在客户端考虑最合适的设置） 。这是个啥东西？─https://zhuanlan.zhihu.com/p/38411551
     msg.setBodyCRC(UtilAll.crc32(msg.getBody()));
     // Back to Results
     AppendMessageResult result = null;
@@ -658,6 +660,7 @@ public class CommitLog {
 
     String topic = msg.getTopic();
     //        int queueId msg.getQueueId();
+    // region 事物相关
     final int tranType = MessageSysFlag.getTransactionValue(msg.getSysFlag());
     if (tranType == MessageSysFlag.TRANSACTION_NOT_TYPE
         || tranType == MessageSysFlag.TRANSACTION_COMMIT_TYPE) {
@@ -682,6 +685,7 @@ public class CommitLog {
         msg.setQueueId(queueId);
       }
     }
+    // endregion
 
     InetSocketAddress bornSocketAddress = (InetSocketAddress) msg.getBornHost();
     if (bornSocketAddress.getAddress() instanceof Inet6Address) {
@@ -692,32 +696,39 @@ public class CommitLog {
     if (storeSocketAddress.getAddress() instanceof Inet6Address) {
       msg.setStoreHostAddressV6Flag();
     }
-
+    // putMessageThreadLocal 根据配置信息中的消息最大值，创建一个ByteBuffer，以及StringBuilder
     PutMessageThreadLocal putMessageThreadLocal = this.putMessageThreadLocal.get();
+    // 对消息进行编码
     PutMessageResult encodeResult = putMessageThreadLocal.getEncoder().encode(msg);
+    // ? 未成功 完成编码（因属性、消息长度超过限制）
     if (encodeResult != null) {
       return CompletableFuture.completedFuture(encodeResult);
     }
+    // 将前面编码的 设置到属性上
     msg.setEncodedBuff(putMessageThreadLocal.getEncoder().encoderBuffer);
+    // Put消息上线文
     PutMessageContext putMessageContext =
         new PutMessageContext(generateKey(putMessageThreadLocal.getKeyBuilder(), msg));
 
     long elapsedTimeInLock = 0;
     MappedFile unlockMappedFile = null;
-
+    // 上锁（自旋锁、可重入锁）
     putMessageLock.lock(); // spin or ReentrantLock ,depending on store config
     try {
+      // 代码清单4-1
       MappedFile mappedFile = this.mappedFileQueue.getLastMappedFile();
       long beginLockTimestamp = this.defaultMessageStore.getSystemClock().now();
       this.beginTimeInLock = beginLockTimestamp;
-
+      // 代码清单4-2
       // Here settings are stored timestamp, in order to ensure an orderly
       // global
+      // 这里设置保存时间戳，以保证全局有序
       msg.setStoreTimestamp(beginLockTimestamp);
-
+      //  如果为空，则从偏移量0中获取一个文件
       if (null == mappedFile || mappedFile.isFull()) {
         mappedFile = this.mappedFileQueue.getLastMappedFile(0); // Mark: NewFile may be cause noise
       }
+      // 还获取不到，可能是磁盘空间主足或者权限不够
       if (null == mappedFile) {
         log.error(
             "create mapped file1 error, topic: "
@@ -727,7 +738,7 @@ public class CommitLog {
         return CompletableFuture.completedFuture(
             new PutMessageResult(PutMessageStatus.CREATE_MAPEDFILE_FAILED, null));
       }
-
+      // 将消息追加到MappedFile中
       result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
       switch (result.getStatus()) {
         case PUT_OK:
@@ -1712,7 +1723,7 @@ public class CommitLog {
 
       final int msgLen =
           calMsgLength(msgInner.getSysFlag(), bodyLength, topicLength, propertiesLength);
-
+      // ? 消息超过最大值
       // Exceeds the maximum message
       if (msgLen > this.maxMessageSize) {
         CommitLog.log.warn(
@@ -1724,47 +1735,49 @@ public class CommitLog {
                 + this.maxMessageSize);
         return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
       }
-
+      // 原本它是根据配置文件中的最大值初始化的，这里会根据实际消息设置它的limit+读模式=缩小ByteBuffer的大小
       // Initialization of storage space
       this.resetByteBuffer(encoderBuffer, msgLen);
-      // 1 TOTALSIZE
+      // 1 TOTALSIZE（总大小）
       this.encoderBuffer.putInt(msgLen);
-      // 2 MAGICCODE
+      // 2 MAGICCODE（魔术）
       this.encoderBuffer.putInt(CommitLog.MESSAGE_MAGIC_CODE);
-      // 3 BODYCRC
+      // 3 BODYCRC（CRC）https://zhuanlan.zhihu.com/p/38411551
       this.encoderBuffer.putInt(msgInner.getBodyCRC());
-      // 4 QUEUEID
+      // 4 QUEUEID（队列ID）
       this.encoderBuffer.putInt(msgInner.getQueueId());
-      // 5 FLAG
+      // 5 FLAG(标志)
       this.encoderBuffer.putInt(msgInner.getFlag());
-      // 6 QUEUEOFFSET, need update later
+      // 6 QUEUEOFFSET, need update later（队列偏移量）
       this.encoderBuffer.putLong(0);
-      // 7 PHYSICALOFFSET, need update later
+      // 7 PHYSICALOFFSET, need update later（物理偏移量）
       this.encoderBuffer.putLong(0);
-      // 8 SYSFLAG
+      // 8 SYSFLAG（系统标志）
       this.encoderBuffer.putInt(msgInner.getSysFlag());
-      // 9 BORNTIMESTAMP
+      // 9 BORNTIMESTAMP（出生（写）时间戳）
       this.encoderBuffer.putLong(msgInner.getBornTimestamp());
-      // 10 BORNHOST
+      // 10 BORNHOST（IP）
       socketAddress2ByteBuffer(msgInner.getBornHost(), this.encoderBuffer);
-      // 11 STORETIMESTAMP
+      // 11 STORETIMESTAMP（storeuijmi）
       this.encoderBuffer.putLong(msgInner.getStoreTimestamp());
-      // 12 STOREHOSTADDRESS
+      // 12 STOREHOSTADDRESS（？）
       socketAddress2ByteBuffer(msgInner.getStoreHost(), this.encoderBuffer);
-      // 13 RECONSUMETIMES
+      // 13 RECONSUMETIMES（重新消费时间）
       this.encoderBuffer.putInt(msgInner.getReconsumeTimes());
-      // 14 Prepared Transaction Offset
+      // 14 Prepared Transaction Offset（准备事物偏移量）
       this.encoderBuffer.putLong(msgInner.getPreparedTransactionOffset());
-      // 15 BODY
+      // 15 BODY（Body大小）
       this.encoderBuffer.putInt(bodyLength);
       if (bodyLength > 0) this.encoderBuffer.put(msgInner.getBody());
-      // 16 TOPIC
+      // 16 TOPIC（主题大小）
       this.encoderBuffer.put((byte) topicLength);
+      // Topic内容
       this.encoderBuffer.put(topicData);
-      // 17 PROPERTIES
+      // 17 PROPERTIES（属性大小）
       this.encoderBuffer.putShort((short) propertiesLength);
+      // ? 有属性──存内容
       if (propertiesLength > 0) this.encoderBuffer.put(propertiesData);
-
+      // 切换为读模式
       encoderBuffer.flip();
       return null;
     }

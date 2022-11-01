@@ -214,9 +214,14 @@ public class MappedFile extends ReferenceResource {
 
     // 代码清单4-3
     int currentPos = this.wrotePosition.get();
+    // ? 没有超过文件最大限制
     if (currentPos < this.fileSize) {
+      // 堆外内存+MappedByte分离、或者只使用 MappedByte，具体看配置
+      // MessageStoreConfig.transientStorePoolEnable。临时存储池启用模式减轻 pageCache的压力，以免 broker busy
+      // 然后 slice 公用buffer中同一个byte数组，这个方法只是下标独立
       ByteBuffer byteBuffer =
           writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
+      // 设置当前位置
       byteBuffer.position(currentPos);
       AppendMessageResult result;
       // 普通消息
@@ -240,7 +245,7 @@ public class MappedFile extends ReferenceResource {
                 (MessageExtBatch) messageExt,
                 putMessageContext);
       }
-      // 超过文件最大
+      // ? 超过文件最大限制
       else {
         return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
       }
@@ -248,6 +253,7 @@ public class MappedFile extends ReferenceResource {
       this.storeTimestamp = result.getStoreTimestamp();
       return result;
     }
+    // 文件写满？
     log.error(
         "MappedFile.appendMessage return null, wrotePosition: {} fileSize: {}",
         currentPos,
