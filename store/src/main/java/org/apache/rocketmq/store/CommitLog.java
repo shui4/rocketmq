@@ -455,7 +455,8 @@ public class CommitLog {
 
     return new DispatchRequest(-1, false /* success */);
   }
-
+  // 代码清单4-6
+  // 获取该消息在消息队列的物理偏移量
   protected static int calMsgLength(
       int sysFlag, int bodyLength, int topicLength, int propertiesLength) {
     int bornhostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 8 : 20;
@@ -637,6 +638,7 @@ public class CommitLog {
     return beginTimeInLock;
   }
 
+  /** 代码清单4-5 */
   private String generateKey(StringBuilder keyBuilder, MessageExt messageExt) {
     keyBuilder.setLength(0);
     keyBuilder.append(messageExt.getTopic());
@@ -741,12 +743,16 @@ public class CommitLog {
       // 将消息追加到MappedFile中
       result = mappedFile.appendMessage(msg, this.appendMessageCallback, putMessageContext);
       switch (result.getStatus()) {
+          // 追加成功
         case PUT_OK:
           break;
+          // 超过文件大小
         case END_OF_FILE:
           unlockMappedFile = mappedFile;
           // Create a new file, re-write the message
+          // 新建文件。
           mappedFile = this.mappedFileQueue.getLastMappedFile(0);
+          // 创建失败？磁盘空间不足、没有权限创建
           if (null == mappedFile) {
             // XXX: warn and notify me
             log.error(
@@ -795,8 +801,9 @@ public class CommitLog {
     // Statistics
     storeStatsService.getSinglePutMessageTopicTimesTotal(msg.getTopic()).add(1);
     storeStatsService.getSinglePutMessageTopicSizeTotal(topic).add(result.getWroteBytes());
-
+    // 同步消息？异步消息？
     CompletableFuture<PutMessageStatus> flushResultFuture = submitFlushRequest(result, msg);
+    // 同步复制？异步复制
     CompletableFuture<PutMessageStatus> replicaResultFuture = submitReplicaRequest(result, msg);
     return flushResultFuture.thenCombine(
         replicaResultFuture,
@@ -1489,13 +1496,14 @@ public class CommitLog {
       // Determines whether there is sufficient free space
       if ((msgLen + END_FILE_MIN_BLANK_LENGTH) > maxBlank) {
         this.msgStoreItemMemory.clear();
-        // 1 TOTALSIZE（最大小）
+        // 1 TOTALSIZE（可用最大小）
         this.msgStoreItemMemory.putInt(maxBlank);
         // 2 MAGICCODE（魔术）
         this.msgStoreItemMemory.putInt(CommitLog.BLANK_MAGIC_CODE);
         // 3 The remaining space may be any value
         // Here the length of the specially set maxBlank
         final long beginTimeMills = CommitLog.this.defaultMessageStore.now();
+        // 所以最少空闲8个字节
         byteBuffer.put(this.msgStoreItemMemory.array(), 0, 8);
         return new AppendMessageResult(
             AppendMessageStatus.END_OF_FILE,
@@ -1506,7 +1514,7 @@ public class CommitLog {
             queueOffset,
             CommitLog.this.defaultMessageStore.now() - beginTimeMills);
       }
-
+      // 消息存储
       int pos = 4 + 4 + 4 + 4 + 4;
       // 6 QUEUEOFFSET（队列偏移量）
       preEncodeBuffer.putLong(pos, queueOffset);

@@ -89,6 +89,12 @@ RocketMQ消息发送需要考虑3个问题：
 2. ConsumeQueue：消息消费队列，消息到达ComitLog文件后，将异步转发到ConsumeQueue文件中，供消费者消费。
 3. Index：消息索引，主要存在消息key与offset的对应关系。
 
+---
+
+
+
+
+
 
 
 - 消息发送存储流程。

@@ -39,6 +39,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageExtBatch;
 import org.apache.rocketmq.store.CommitLog.PutMessageContext;
 import org.apache.rocketmq.store.config.FlushDiskType;
+import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
@@ -55,6 +56,9 @@ public class MappedFile extends ReferenceResource {
 
   protected final AtomicInteger committedPosition = new AtomicInteger(0);
   private final AtomicInteger flushedPosition = new AtomicInteger(0);
+  /**
+   * 取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置
+   */
   protected int fileSize;
   protected FileChannel fileChannel;
   /** Message will put to here first, and then reput to FileChannel if writeBuffer is not null. */
@@ -62,6 +66,7 @@ public class MappedFile extends ReferenceResource {
 
   protected TransientStorePool transientStorePool = null;
   private String fileName;
+  // 文件逻辑偏移量，即文件名
   private long fileFromOffset;
   private File file;
   private MappedByteBuffer mappedByteBuffer;
@@ -218,7 +223,7 @@ public class MappedFile extends ReferenceResource {
     if (currentPos < this.fileSize) {
       // 堆外内存+MappedByte分离、或者只使用 MappedByte，具体看配置
       // MessageStoreConfig.transientStorePoolEnable。临时存储池启用模式减轻 pageCache的压力，以免 broker busy
-      // 然后 slice 公用buffer中同一个byte数组，这个方法只是下标独立
+      // 然后 slice 公用buffer中同一个byte数组，这个方法能够让其与mappedByteBuffer独立下标
       ByteBuffer byteBuffer =
           writeBuffer != null ? writeBuffer.slice() : this.mappedByteBuffer.slice();
       // 设置当前位置
