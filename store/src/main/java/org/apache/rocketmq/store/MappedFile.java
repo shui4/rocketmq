@@ -43,6 +43,7 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
+/** 内存映射文件 */
 public class MappedFile extends ReferenceResource {
   public static final int OS_PAGE_SIZE = 1024 * 4;
   protected static final InternalLogger log =
@@ -53,8 +54,9 @@ public class MappedFile extends ReferenceResource {
   private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
   /** 写指针 */
   protected final AtomicInteger wrotePosition = new AtomicInteger(0);
-
+  /** 写指针（pageCache） */
   protected final AtomicInteger committedPosition = new AtomicInteger(0);
+  /** 刷盘指针 */
   private final AtomicInteger flushedPosition = new AtomicInteger(0);
   /** 取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置 */
   protected int fileSize;

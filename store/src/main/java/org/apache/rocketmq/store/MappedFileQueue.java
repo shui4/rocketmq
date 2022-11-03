@@ -100,10 +100,11 @@ public class MappedFileQueue {
   }
 
   /**
+   * 代码清单4-11<br>
    * 根据时间戳 查询 MappedFile
    *
    * @param timestamp 时间戳
-   * @return 从List中 的 第一个 >= timestamp 的 timestamp，如果没有，则拿最后一个
+   * @return 从List中 的 一个 >= timestamp 的 MappedFile，如果没有，则拿最后一个
    */
   public MappedFile getMappedFileByTime(final long timestamp) {
     Object[] mfs = this.copyMappedFiles(0);
@@ -371,6 +372,11 @@ public class MappedFileQueue {
     return true;
   }
 
+  /**
+   * 代码清单4-13 <br>
+   *
+   * @return 获取最小偏移量
+   */
   public long getMinOffset() {
 
     if (!this.mappedFiles.isEmpty()) {
@@ -386,7 +392,9 @@ public class MappedFileQueue {
   }
 
   /**
-   * @return 得到最大偏移（刷盘的）
+   * 代码清单4-14
+   *
+   * @return 得到最大偏移
    */
   public long getMaxOffset() {
     // 最后一个文件
@@ -398,7 +406,9 @@ public class MappedFileQueue {
   }
 
   /**
-   * @return 获取最大写指针
+   * 与 {@link #getMaxOffset()}不同点：wrotePosition可能拿到的是 {@link MappedFile#writeBuffer}的指针，{@link MappedFile#committedPosition} 是放到 pageCache之后的
+   *
+   * @return 获取最大写指针偏移量
    */
   public long getMaxWrotePosition() {
     MappedFile mappedFile = getLastMappedFile();
@@ -588,11 +598,12 @@ public class MappedFileQueue {
   }
 
   /**
-   * Finds a mapped file by offset.
+   * 代码清单4-12 <br>
+   * 按偏移量查找映射文件
    *
    * @param offset Offset.
-   * @param returnFirstOnNotFound If the mapped file is not found, then return the first one.
-   * @return Mapped file or null (when not found and returnFirstOnNotFound is <code>false</code>).
+   * @param returnFirstOnNotFound 如果没有找到映射的文件，则返回第一个文件。
+   * @return 映射文件或null(当没有找到并且returnFirstOnNotFound是<code>false</code>)。
    */
   public MappedFile findMappedFileByOffset(final long offset, final boolean returnFirstOnNotFound) {
     try {
