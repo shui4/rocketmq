@@ -37,6 +37,7 @@ public class MessageStoreConfig {
 
   private String readOnlyCommitLogStorePaths = null;
 
+  /** CommitLog 文件大小，默认1GB */
   // CommitLog file size,default is 1G
   private int mappedFileSizeCommitLog = 1024 * 1024 * 1024;
   // ConsumeQueue file size,default is 30W

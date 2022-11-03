@@ -56,10 +56,9 @@ public class MappedFile extends ReferenceResource {
 
   protected final AtomicInteger committedPosition = new AtomicInteger(0);
   private final AtomicInteger flushedPosition = new AtomicInteger(0);
-  /**
-   * 取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置
-   */
+  /** 取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置 */
   protected int fileSize;
+
   protected FileChannel fileChannel;
   /** Message will put to here first, and then reput to FileChannel if writeBuffer is not null. */
   protected ByteBuffer writeBuffer = null;
@@ -540,6 +539,11 @@ public class MappedFile extends ReferenceResource {
     return false;
   }
 
+  /**
+   * 得到写指针
+   *
+   * @return int
+   */
   public int getWrotePosition() {
     return wrotePosition.get();
   }
