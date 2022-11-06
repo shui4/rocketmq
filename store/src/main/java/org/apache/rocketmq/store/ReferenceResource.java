@@ -19,58 +19,62 @@ package org.apache.rocketmq.store;
 import java.util.concurrent.atomic.AtomicLong;
 
 public abstract class ReferenceResource {
-    protected final AtomicLong refCount = new AtomicLong(1);
-    protected volatile boolean available = true;
-    protected volatile boolean cleanupOver = false;
-    private volatile long firstShutdownTimestamp = 0;
+  protected final AtomicLong refCount = new AtomicLong(1);
+  protected volatile boolean available = true;
+  protected volatile boolean cleanupOver = false;
+  /** 首次Shutdown时间戳 */
+  private volatile long firstShutdownTimestamp = 0;
 
-    public synchronized boolean hold() {
-        if (this.isAvailable()) {
-            if (this.refCount.getAndIncrement() > 0) {
-                return true;
-            } else {
-                this.refCount.getAndDecrement();
-            }
-        }
-
-        return false;
+  public synchronized boolean hold() {
+    if (this.isAvailable()) {
+      if (this.refCount.getAndIncrement() > 0) {
+        return true;
+      } else {
+        this.refCount.getAndDecrement();
+      }
     }
 
-    public boolean isAvailable() {
-        return this.available;
+    return false;
+  }
+
+  public boolean isAvailable() {
+    return this.available;
+  }
+
+  public void shutdown(final long intervalForcibly) {
+    if (this.available) {
+      this.available = false;
+      this.firstShutdownTimestamp = System.currentTimeMillis();
+      this.release();
     }
-
-    public void shutdown(final long intervalForcibly) {
-        if (this.available) {
-            this.available = false;
-            this.firstShutdownTimestamp = System.currentTimeMillis();
-            this.release();
-        } else if (this.getRefCount() > 0) {
-            if ((System.currentTimeMillis() - this.firstShutdownTimestamp) >= intervalForcibly) {
-                this.refCount.set(-1000 - this.getRefCount());
-                this.release();
-            }
-        }
+    // ? 非首次 shutdown 并且 引用计数 >0
+    else if (this.getRefCount() > 0) {
+      // ? 如果 强制的延迟
+      if ((System.currentTimeMillis() - this.firstShutdownTimestamp) >= intervalForcibly) {
+        // 引用直接变为 -1000 - xxx，(反正小于0就完事了)
+        this.refCount.set(-1000 - this.getRefCount());
+        this.release();
+      }
     }
+  }
 
-    public void release() {
-        long value = this.refCount.decrementAndGet();
-        if (value > 0)
-            return;
-
-        synchronized (this) {
-
-            this.cleanupOver = this.cleanup(value);
-        }
+  public void release() {
+    // 和Netty的好像...，引用计算
+    long value = this.refCount.decrementAndGet();
+    if (value > 0) return;
+    // 映射计数<=0
+    synchronized (this) {
+      this.cleanupOver = this.cleanup(value);
     }
+  }
 
-    public long getRefCount() {
-        return this.refCount.get();
-    }
+  public long getRefCount() {
+    return this.refCount.get();
+  }
 
-    public abstract boolean cleanup(final long currentRef);
+  public abstract boolean cleanup(final long currentRef);
 
-    public boolean isCleanupOver() {
-        return this.refCount.get() <= 0 && this.cleanupOver;
-    }
+  public boolean isCleanupOver() {
+    return this.refCount.get() <= 0 && this.cleanupOver;
+  }
 }

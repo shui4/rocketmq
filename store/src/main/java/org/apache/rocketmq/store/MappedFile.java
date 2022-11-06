@@ -86,7 +86,7 @@ public class MappedFile extends ReferenceResource {
   private long fileFromOffset;
   /** 物理文件 */
   private File file;
-  /** 物理文件对应的内存映射Buffer */
+  /** 物理文件对应的内存映射Buffer ，备注：目前来看它的position永远为0，都是先slice */
   private MappedByteBuffer mappedByteBuffer;
   /** 文件最后一次写入内容的时间 */
   private volatile long storeTimestamp = 0;
@@ -500,6 +500,7 @@ public class MappedFile extends ReferenceResource {
       if (this.hold()) {
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
         byteBuffer.position(pos);
+        // 可读（因为后面全是空数据）
         int size = readPosition - pos;
         ByteBuffer byteBufferNew = byteBuffer.slice();
         byteBufferNew.limit(size);
@@ -531,7 +532,7 @@ public class MappedFile extends ReferenceResource {
               + " have cleanup, do not do it again.");
       return true;
     }
-
+    // 通过反射 对堆外 内存销毁
     clean(this.mappedByteBuffer);
     TOTAL_MAPPED_VIRTUAL_MEMORY.addAndGet(this.fileSize * (-1));
     TOTAL_MAPPED_FILES.decrementAndGet();
@@ -539,15 +540,23 @@ public class MappedFile extends ReferenceResource {
     return true;
   }
 
+  /**
+   * 摧毁
+   *
+   * @param intervalForcibly 强行的间隔
+   * @return boolean
+   */
   public boolean destroy(final long intervalForcibly) {
     this.shutdown(intervalForcibly);
 
     if (this.isCleanupOver()) {
       try {
+        // 关闭文件通道
         this.fileChannel.close();
         log.info("close file channel " + this.fileName + " OK");
 
         long beginTime = System.currentTimeMillis();
+        // 删除文件
         boolean result = this.file.delete();
         log.info(
             "delete file[REF:"
