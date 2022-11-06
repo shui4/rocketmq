@@ -45,33 +45,52 @@ import sun.nio.ch.DirectBuffer;
 
 /** 内存映射文件 */
 public class MappedFile extends ReferenceResource {
+  /** 操作系统每页大小，默认4KB。 */
   public static final int OS_PAGE_SIZE = 1024 * 4;
+
   protected static final InternalLogger log =
       InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-
+  /** 当前JVM实实例中MappedFile的虚拟内存 */
   private static final AtomicLong TOTAL_MAPPED_VIRTUAL_MEMORY = new AtomicLong(0);
 
+  /** 当前JVM实例中的MappedFile对象个数 */
   private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
-  /** 写指针 */
+  // region 指针相关：wrotePosition -> committedPosition -> flushedPosition
+  /** 当前文件的写指针，从0开始（内存映射文件中的写指针） */
   protected final AtomicInteger wrotePosition = new AtomicInteger(0);
-  /** 写指针（pageCache） */
+  /**
+   * 当前文件的提交指针，如果开启{@link MessageStoreConfig#setTransientStorePoolEnable}，则数据会存储在{@link
+   * TransientStorePool} 中，然后提交到内存映射ByteBuffer中，再写入磁盘
+   */
   protected final AtomicInteger committedPosition = new AtomicInteger(0);
-  /** 刷盘指针 */
+  /** 将该指针之前的的数据持久化存储到磁盘中 */
   private final AtomicInteger flushedPosition = new AtomicInteger(0);
-  /** 取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置 */
+  // endregion
+  /** 文件大小。取决于 如{@link MessageStoreConfig#setMappedFileSizeCommitLog}...等配置 */
   protected int fileSize;
-
+  /** 文件通道 */
   protected FileChannel fileChannel;
-  /** Message will put to here first, and then reput to FileChannel if writeBuffer is not null. */
+  /**
+   * 堆外内存ByteBuffer，如果不为空，数据首先将存储在 该Buffer中，然后提交MappedFile创建的FileChannel中。{@link
+   * MessageStoreConfig#isTransientStorePoolEnable()}为true时不为空
+   */
   protected ByteBuffer writeBuffer = null;
-
+  /**
+   * 堆外内存池，该内存池中的内存会提供内存锁机制。{@link MessageStoreConfig#setTransientStorePoolEnable(boolean)}为true时启用
+   */
+  /** 瞬态存储池 */
   protected TransientStorePool transientStorePool = null;
+  /** 文件名 */
   private String fileName;
   // 文件逻辑偏移量，即文件名
   private long fileFromOffset;
+  /** 物理文件 */
   private File file;
+  /** 物理文件对应的内存映射Buffer */
   private MappedByteBuffer mappedByteBuffer;
+  /** 文件最后一次写入内容的时间 */
   private volatile long storeTimestamp = 0;
+  /** 是否是{@link MappedFileQueue}队列中的第一个文件 */
   private boolean firstCreateInQueue = false;
 
   public MappedFile() {}
@@ -148,7 +167,7 @@ public class MappedFile extends ReferenceResource {
   public static long getTotalMappedVirtualMemory() {
     return TOTAL_MAPPED_VIRTUAL_MEMORY.get();
   }
-
+  // 代码清单4-16 MappedFile初始化
   public void init(
       final String fileName, final int fileSize, final TransientStorePool transientStorePool)
       throws IOException {
