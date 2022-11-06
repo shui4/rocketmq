@@ -333,6 +333,10 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
+   * 刷盘 <br>
+   * 代码清单4-21
+   *
+   * @param flushLeastPages 最少刷盘页数量，需要达到这个量才会刷盘
    * @return The current flushed position
    */
   public int flush(final int flushLeastPages) {
@@ -341,7 +345,9 @@ public class MappedFile extends ReferenceResource {
         int value = getReadPosition();
 
         try {
-          // We only append data to fileChannel or mappedByteBuffer, never both.
+          // 我们只将数据附加到 fileChannel 或 mappedByteBuffer，而不是两者。
+          // 预防数据不完整，因为如果 启用 transientStorePoolEnable ,在执行commit的时候，可能执行到一半，所以不应该从 mappedByteBuffer
+          // 执行 force
           if (writeBuffer != null || this.fileChannel.position() != 0) {
             this.fileChannel.force(false);
           } else {
@@ -361,11 +367,19 @@ public class MappedFile extends ReferenceResource {
     return this.getFlushedPosition();
   }
 
+  /**
+   * 提交，将堆外内存数据提交到内存映射上<br>
+   * 代码清单4-18
+   *
+   * @param commitLeastPages 本次提交的最小页数，如果待提交数据不满足 commitLeastPages ，则不执行本次提交操作，等待下次提交
+   * @return 提交的写指针
+   */
   public int commit(final int commitLeastPages) {
     if (writeBuffer == null) {
-      // no need to commit data to file channel, so just regard wrotePosition as committedPosition.
+      // 无需将数据提交到文件通道，因此只需将 writePosition 视为committedPosition。
       return this.wrotePosition.get();
     }
+    // ? 能够提交
     if (this.isAbleToCommit(commitLeastPages)) {
       if (this.hold()) {
         commit0();
@@ -375,21 +389,21 @@ public class MappedFile extends ReferenceResource {
       }
     }
 
-    // All dirty data has been committed to FileChannel.
+    // ? 所有脏数据都已提交到 FileChannel。
     if (writeBuffer != null
         && this.transientStorePool != null
         && this.fileSize == this.committedPosition.get()) {
+      // 将 writeBuffer 归还
       this.transientStorePool.returnBuffer(writeBuffer);
       this.writeBuffer = null;
     }
-
     return this.committedPosition.get();
   }
 
   protected void commit0() {
     int writePos = this.wrotePosition.get();
     int lastCommittedPosition = this.committedPosition.get();
-
+    // 是否要从堆外内存中将数据提交至内存映射上
     if (writePos - lastCommittedPosition > 0) {
       try {
         ByteBuffer byteBuffer = writeBuffer.slice();
@@ -422,15 +436,16 @@ public class MappedFile extends ReferenceResource {
   protected boolean isAbleToCommit(final int commitLeastPages) {
     int flush = this.committedPosition.get();
     int write = this.wrotePosition.get();
-
+    // ? 该文件已满（当堆外内存写指针达到文件大小）
     if (this.isFull()) {
       return true;
     }
-
+    // ? commitLeastPages>0
     if (commitLeastPages > 0) {
+      // ? 堆外内存写指针转换的page  与  已提交到内存映射指针转换的page 相差（称为脏页数量） 超过 commitLeastPages
       return ((write / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE)) >= commitLeastPages;
     }
-
+    // ? commitLeastPages>0
     return write > flush;
   }
 
@@ -475,6 +490,10 @@ public class MappedFile extends ReferenceResource {
     return null;
   }
 
+  /**
+   * @param pos 起始指针
+   * @return 查询映射内存
+   */
   public SelectMappedBufferResult selectMappedBuffer(int pos) {
     int readPosition = getReadPosition();
     if (pos < readPosition && pos >= 0) {
@@ -574,7 +593,9 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
-   * @return The max position which have valid data
+   * 获取 最大可读指针，如果启用 transientStorePoolEnable，则会读 committedPosition（内存映射读指针），因为这才是安全的数据
+   *
+   * @return 有有效数据的最大位置
    */
   public int getReadPosition() {
     return this.writeBuffer == null ? this.wrotePosition.get() : this.committedPosition.get();
