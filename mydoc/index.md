@@ -93,10 +93,6 @@ RocketMQ消息发送需要考虑3个问题：
 
 
 
-
-
-
-
 - 消息发送存储流程。
 - 存储文件组织与内存映射机制。
 - RocketMQ存储文件。
@@ -105,3 +101,47 @@ RocketMQ消息发送需要考虑3个问题：
 - RocketMQ刷盘机制。
 - RocketMQ文件删除机制。
 - 同步双写机制。
+
+### RocketMQ存储文件
+
+```
+store
+├── checkpoint									
+├── commitlog
+│   └── 00000000000000000000
+├── config
+│   ├── consumerFilter.json			
+│   ├── consumerFilter.json.bak			
+│   ├── consumerOffset.json			
+│   ├── consumerOffset.json.bak
+│   ├── delayOffset.json			
+│   ├── delayOffset.json.bak
+│   ├── topics.json					
+│   └── topics.json.bak
+├── consumequeue
+│   └── TopicTest
+│       ├── 0
+│       │   └── 00000000000000000000
+│       ├── 1
+│       │   └── 00000000000000000000
+│       ├── 2
+│       │   └── 00000000000000000000
+│       └── 3
+│           └── 00000000000000000000
+├── index						
+│   └── 20221031202849693
+└── lock
+```
+
+1. commitlog：消息存储目录。
+2. config：运行期间的一些配置信息，主要包括下列信息
+   - consumerFilter.json：主题消息过滤信息。
+   - consumerOffset.json：集群消费模式下的消息消费进度。
+   - delayOffset.json：延时消息队列拉取进度
+   - subscriptionGroup.json：消息消费组的配置信息
+   - topics.json：topic配置属性。
+3. consumequeue：消息消费队列存储目录
+4. index：消息索引文件存储目录
+5. abort：如果存在abort文件，说明Broker非正常关闭，该文件默认在启动Broker时创建，在正常退出之前删除。
+6. checkpoint：检测点文件，存储CommitLog文件最后一次刷盘时间戳、ConsumeQueue最后一次刷盘时间、index文件最后一次刷盘时间戳
+
