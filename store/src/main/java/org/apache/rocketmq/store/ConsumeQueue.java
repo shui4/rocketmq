@@ -29,7 +29,28 @@ import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
 
-/** 消费队列 */
+/**
+ * 消费队列 <br>
+ * 消费者直接从 commitLog 文件获取消息效率会很低下，因为 commitLog 中会存储各种 topic 消息，而设计的
+ * ConsumeQueue，来帮助消费者快速知道它订阅的消息在哪个位置。<br>
+ * 内容：
+ *
+ * <pre>├── consumequeue
+ * │   └── TopicTest
+ * │       ├── 0
+ * │       │   └── 00000000000000000000
+ * │       ├── 1
+ * │       │   └── 00000000000000000000
+ * │       ├── 2
+ * │       │   └── 00000000000000000000
+ * │       └── 3
+ * │           └── 00000000000000000000</pre>
+ *
+ * 它的第 2 层为 Topic ，第 3 层为消息队列，第 4 层为 consumeQueue 文件。 <br>
+ * 其中单个 ConsumeQueue 默认包含 30 万个条目，单个文件长度为 3 × 10^6x20 字节，单个 ConsumeQueue 文件可以看作一个 ConsumeQueue
+ * 条目的数组，其下标为 ConsumeQueue 的逻辑偏移量， * 消息消费进度存储的偏移量即逻辑偏移量。 ConsumeQueue 即为 CommitLog 文件的索引文
+ * 件，其构建机制是当消息到达 CommitLog 文件后，由专门的线程产生消 * 息转发任务，从而构建 ConsumeQueue 文件与 Index 文件
+ */
 public class ConsumeQueue {
   /** 日志 */
   private static final InternalLogger log =
@@ -198,15 +219,14 @@ public class ConsumeQueue {
   }
 
   /**
-   * 被时间抵消在队列
-   *
    * @param timestamp 时间戳
-   * @return long
+   * @return 按时间获取队列中的偏移量
    */
   public long getOffsetInQueueByTime(final long timestamp) {
     MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);
     if (mappedFile != null) {
       long offset = 0;
+      // 代码清单4-34
       int low =
           minLogicOffset > mappedFile.getFileFromOffset()
               ? (int) (minLogicOffset - mappedFile.getFileFromOffset())
@@ -220,6 +240,7 @@ public class ConsumeQueue {
         ByteBuffer byteBuffer = sbr.getByteBuffer();
         high = byteBuffer.limit() - CQ_STORE_UNIT_SIZE;
         try {
+          // 二分查询
           while (high >= low) {
             midOffset = (low + high) / (2 * CQ_STORE_UNIT_SIZE) * CQ_STORE_UNIT_SIZE;
             byteBuffer.position(midOffset);
@@ -266,7 +287,7 @@ public class ConsumeQueue {
                       : leftOffset;
             }
           }
-
+          // 没有与时间戳相等的，则返回最接近的消息偏移量
           return (mappedFile.getFileFromOffset() + offset) / CQ_STORE_UNIT_SIZE;
         } finally {
           sbr.release();
@@ -708,14 +729,17 @@ public class ConsumeQueue {
   }
 
   /**
+   * 代码清单4-33 <br>
    * 得到索引缓冲区
    *
-   * @param startIndex 开始指数
+   * @param startIndex 开始索引
    * @return {@link SelectMappedBufferResult}
    */
   public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
     int mappedFileSize = this.mappedFileSize;
+    // 计算 逻辑偏移量
     long offset = startIndex * CQ_STORE_UNIT_SIZE;
+    // ? 偏移量 >= 最小逻辑偏移量
     if (offset >= this.getMinLogicOffset()) {
       MappedFile mappedFile = this.mappedFileQueue.findMappedFileByOffset(offset);
       if (mappedFile != null) {
@@ -724,6 +748,7 @@ public class ConsumeQueue {
         return result;
       }
     }
+    // 偏移量 < 最小逻辑偏移量， null
     return null;
   }
 
@@ -755,9 +780,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 得到最小值逻辑抵消
-   *
-   * @return long
+   * @return 最小逻辑偏移量
    */
   public long getMinLogicOffset() {
     return minLogicOffset;
