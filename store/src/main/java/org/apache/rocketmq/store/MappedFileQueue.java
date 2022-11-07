@@ -406,7 +406,8 @@ public class MappedFileQueue {
   }
 
   /**
-   * 与 {@link #getMaxOffset()}不同点：wrotePosition可能拿到的是 {@link MappedFile#writeBuffer}的指针，{@link MappedFile#committedPosition} 是放到 pageCache之后的
+   * 与 {@link #getMaxOffset()}不同点：wrotePosition可能拿到的是 {@link MappedFile#writeBuffer}的指针，{@link
+   * MappedFile#committedPosition} 是放到 pageCache之后的
    *
    * @return 获取最大写指针偏移量
    */
@@ -610,6 +611,7 @@ public class MappedFileQueue {
       MappedFile firstMappedFile = this.getFirstMappedFile();
       MappedFile lastMappedFile = this.getLastMappedFile();
       if (firstMappedFile != null && lastMappedFile != null) {
+        // ? 偏移量不在范围内
         if (offset < firstMappedFile.getFileFromOffset()
             || offset >= lastMappedFile.getFileFromOffset() + this.mappedFileSize) {
           LOG_ERROR.warn(
@@ -619,7 +621,10 @@ public class MappedFileQueue {
               lastMappedFile.getFileFromOffset() + this.mappedFileSize,
               this.mappedFileSize,
               this.mappedFiles.size());
-        } else {
+        }
+        // 偏移量在queue的范围内
+        else {
+          // 根据偏移量计算出处属于哪个MappedFile
           int index =
               (int)
                   ((offset / this.mappedFileSize)
@@ -635,7 +640,7 @@ public class MappedFileQueue {
               && offset < targetFile.getFileFromOffset() + this.mappedFileSize) {
             return targetFile;
           }
-
+          // 什么情况会走这里？（不明白）
           for (MappedFile tmpMappedFile : this.mappedFiles) {
             if (offset >= tmpMappedFile.getFileFromOffset()
                 && offset < tmpMappedFile.getFileFromOffset() + this.mappedFileSize) {
