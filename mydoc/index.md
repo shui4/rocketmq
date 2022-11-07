@@ -102,7 +102,12 @@ RocketMQ消息发送需要考虑3个问题：
 - RocketMQ文件删除机制。
 - 同步双写机制。
 
-### RocketMQ存储文件
+### 存储文件组织与内存映射
+
+- MappedFileQueue
+- MappedFile
+
+### RocketMQ存储文件	
 
 ```
 store
