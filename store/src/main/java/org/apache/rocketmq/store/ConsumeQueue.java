@@ -652,7 +652,10 @@ public class ConsumeQueue {
           offset);
       return true;
     }
-
+    // 代码清单4-53
+    // 依次将消息偏移量、消息长度、 tag 哈希码写入 ByteBuffer ，并根据 consume-QueueOffset 计算 ConsumeQueue 中的物理
+    // 地址，将内容追加到 ConsumeQueue 的内存映射文件中中（本操作只追
+    // 加，不刷盘）， ConsumeQueue 的刷盘方式固定为异步刷盘
     this.byteBufferIndex.flip();
     this.byteBufferIndex.limit(CQ_STORE_UNIT_SIZE);
     this.byteBufferIndex.putLong(offset);

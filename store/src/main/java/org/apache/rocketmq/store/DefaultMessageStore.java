@@ -2162,11 +2162,13 @@ public class DefaultMessageStore implements MessageStore {
   }
 
   /**
-   * 放置消息位置信息
+   * 放置消息位置信息 <br>
+   * 代码清单4-52
    *
    * @param dispatchRequest 调度请求
    */
   public void putMessagePositionInfo(DispatchRequest dispatchRequest) {
+    // 根据消息主题与队列 ID ，先获取对应的 ConsumeQueue 文件
     ConsumeQueue cq =
         this.findConsumeQueue(dispatchRequest.getTopic(), dispatchRequest.getQueueId());
     cq.putMessagePositionInfoWrapper(dispatchRequest, checkMultiDispatchQueue(dispatchRequest));
