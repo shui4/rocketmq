@@ -2809,7 +2809,10 @@ public class DefaultMessageStore implements MessageStore {
    * @author shui4
    */
   class ReputMessageService extends ServiceThread {
-    /** 抵消信誉 */
+    /**
+     * 从哪个物理偏移量开始转发消息给 ConsumeQueue 和 Index 文件。如果允许重复转发，将 reputFromOffset 设置为 CommitLog
+     * 文件的提交指针。如果不允许重复转发，将 reputFromOffset 设置为 CommitLog 文件的内存中最大偏移量
+     */
     private volatile long reputFromOffset = 0;
 
     /**
@@ -2868,7 +2871,7 @@ public class DefaultMessageStore implements MessageStore {
       return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
     }
 
-    /** 名誉 */
+    /** do reput */
     private void doReput() {
       if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
         log.warn(
@@ -2877,19 +2880,21 @@ public class DefaultMessageStore implements MessageStore {
             DefaultMessageStore.this.commitLog.getMinOffset());
         this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
       }
+
       for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
         // 代码清单4-48
         if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
             && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
           break;
         }
-
+        // 代码清单4-50
+        // 返回 reputFromOffset 偏移量开始的全部有效数据（CommitLog 文件）
         SelectMappedBufferResult result =
             DefaultMessageStore.this.commitLog.getData(reputFromOffset);
         if (result != null) {
           try {
             this.reputFromOffset = result.getStartOffset();
-
+            // 然后循环读取每一条消息
             for (int readSize = 0; readSize < result.getSize() && doNext; ) {
               DispatchRequest dispatchRequest =
                   DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(
@@ -2900,7 +2905,10 @@ public class DefaultMessageStore implements MessageStore {
                       : dispatchRequest.getBufferSize();
 
               if (dispatchRequest.isSuccess()) {
+                // 如果消息长度大于0
                 if (size > 0) {
+                  // 调度 , 分别调用 CommitLogDispatcherBuildConsumeQueue（构建消息消费队列） 、
+                  // CommitLogDispatcherBuildIndex（构建索引文件）
                   DefaultMessageStore.this.doDispatch(dispatchRequest);
 
                   if (BrokerRole.SLAVE
@@ -3004,8 +3012,7 @@ public class DefaultMessageStore implements MessageStore {
             dispatchRequest.getPropertiesMap());
       }
     }
-
-    /** 跑 */
+    // 代码清单4-49
     @Override
     public void run() {
       DefaultMessageStore.log.info(this.getServiceName() + " service started");
@@ -3013,6 +3020,7 @@ public class DefaultMessageStore implements MessageStore {
       while (!this.isStopped()) {
         try {
           Thread.sleep(1);
+          // 尝试推送消息到 ConsumeQueue 和 Index 文件中
           this.doReput();
         } catch (Exception e) {
           DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
