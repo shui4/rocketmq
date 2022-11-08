@@ -2344,7 +2344,8 @@ public class DefaultMessageStore implements MessageStore {
   class CommitLogDispatcherBuildIndex implements CommitLogDispatcher {
 
     /**
-     * 派遣
+     * 派遣 <br>
+     * 代码清单4-54
      *
      * @param request 要求
      */
