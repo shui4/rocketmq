@@ -216,31 +216,40 @@ public class CommitLog {
     return null;
   }
 
-  /** When the normal exit, data recovery, all memory data have been flush */
+  /** 正常退出时，数据恢复，所有内存数据都已flush */
   public void recoverNormally(long maxPhyOffsetOfConsumeQueue) {
+    // 代码清单4-65
+    // ? 在进行文件恢复时查找消息是否验证CRC
     boolean checkCRCOnRecover =
         this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
     final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
     if (!mappedFiles.isEmpty()) {
       // Began to recover from the last third file
+      // Broker正常停止再重启时，从倒数第3个文件开始恢复，如果不足3个文件，则从第一个文件开始恢复
       int index = mappedFiles.size() - 3;
       if (index < 0) index = 0;
-
+      // 代码清单 4-66
       MappedFile mappedFile = mappedFiles.get(index);
       ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
+      // CommitLog文件已确认的物理偏移量
       long processOffset = mappedFile.getFileFromOffset();
+      // 当前文件已校验通过的物理偏移量（最后一个文件最后一个消息的偏移量）
       long mappedFileOffset = 0;
+      // 遍历 mappedFiles中的CommitLog
       while (true) {
+        // 验证消息是否正常
         DispatchRequest dispatchRequest =
             this.checkMessageAndReturnSize(byteBuffer, checkCRCOnRecover);
+        // 消息大小为0
         int size = dispatchRequest.getMsgSize();
         // Normal data
+        // 正常 并且 消息大小大于 0
         if (dispatchRequest.isSuccess() && size > 0) {
+          // mappedFileOffset指针向前移动本条消息的长度
           mappedFileOffset += size;
         }
-        // Come the end of the file, switch to the next file Since the
-        // return 0 representatives met last hole,
-        // this can not be included in truncate offset
+        // 来到文件末尾，切换到下一个文件由于返回0代表遇到了最后一个洞，
+        // 这不能包含在截断偏移中
         else if (dispatchRequest.isSuccess() && size == 0) {
           index++;
           if (index >= mappedFiles.size()) {
@@ -248,7 +257,9 @@ public class CommitLog {
             log.info(
                 "recover last 3 physics file over, last mapped file " + mappedFile.getFileName());
             break;
-          } else {
+          }
+          // 如果还有下一个文件，则重置 processOffset、mappedFileOffset,循环
+          else {
             mappedFile = mappedFiles.get(index);
             byteBuffer = mappedFile.sliceByteBuffer();
             processOffset = mappedFile.getFileFromOffset();
@@ -257,13 +268,16 @@ public class CommitLog {
           }
         }
         // Intermediate file read error
+        // 如果查找结果为 false ，表明该文件未填满所有消息，则跳出循环，结束遍历文件
+        // 会应用前面一个成功消息的指针，后面这个失败的消息将被后续生产者发送的消息覆盖
         else if (!dispatchRequest.isSuccess()) {
           log.info("recover physics file end, " + mappedFile.getFileName());
           break;
         }
       }
-
+      // 最后一个文件+最后一个文件最后一个消息的偏移量
       processOffset += mappedFileOffset;
+      // 更新 MappedFileQueue 的 flushedWhere 和 committedPosition 指针
       this.mappedFileQueue.setFlushedWhere(processOffset);
       this.mappedFileQueue.setCommittedWhere(processOffset);
       this.mappedFileQueue.truncateDirtyFiles(processOffset);

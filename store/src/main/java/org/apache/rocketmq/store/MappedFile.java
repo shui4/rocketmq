@@ -500,7 +500,7 @@ public class MappedFile extends ReferenceResource {
       if (this.hold()) {
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
         byteBuffer.position(pos);
-        // 可读（因为后面全是空数据）
+        // 可读长度（因为后面全是空数据）
         int size = readPosition - pos;
         ByteBuffer byteBufferNew = byteBuffer.slice();
         byteBufferNew.limit(size);

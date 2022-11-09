@@ -112,7 +112,7 @@ public class DefaultMessageStore implements MessageStore {
   /** 医管局服务 */
   private final HAService haService;
 
-  /** 计划消息服务 */
+  /** 消息调度服务 */
   private final ScheduleMessageService scheduleMessageService;
 
   /** 商店统计服务 */
@@ -253,28 +253,33 @@ public class DefaultMessageStore implements MessageStore {
     boolean result = true;
 
     try {
+      // 代码清单4-58
+      // ? ${ROCKET_HOME}/store/abort不存在
+      // 在退出时通过注册JVM钩子函数删除abort文件，所以存在表示异常退出，可能CommitLog与ConsumeQueue数据有可能不一致
       boolean lastExitOK = !this.isTempFileExist();
       log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
-      // load Commit Log
+      // 加载 Commit Log
       result = result && this.commitLog.load();
 
-      // load Consume Queue
+      // 加载 ConsumeQueue
       result = result && this.loadConsumeQueue();
-
+      // ? 上面都成功
       if (result) {
+        // 加载并存储checkpoint文件，主要用于记录CommitLog文件、ConsumeQueue文件、Index文件的刷盘点
         this.storeCheckpoint =
             new StoreCheckpoint(
                 StorePathConfigHelper.getStoreCheckpoint(
                     this.messageStoreConfig.getStorePathRootDir()));
 
         this.indexService.load(lastExitOK);
-
+        // 恢复
         this.recover(lastExitOK);
 
         log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
-
+        // 代码清单4-59
         if (null != scheduleMessageService) {
+
           result = this.scheduleMessageService.load();
         }
       }
@@ -1940,21 +1945,32 @@ public class DefaultMessageStore implements MessageStore {
   }
 
   /**
-   * 负载消耗队列
+   * 加载{@link ConsumeQueue}
    *
    * @return boolean
    */
   private boolean loadConsumeQueue() {
+    // basedir/store/consumequeue
     File dirLogic =
         new File(
             StorePathConfigHelper.getStorePathConsumeQueue(
                 this.messageStoreConfig.getStorePathRootDir()));
+    // tree basedir/store/consumequeue
+    //  consumequeue
+    //      └── TopicTest
+    //      └── ...more
+    // 获取Topic目录
     File[] fileTopicList = dirLogic.listFiles();
     if (fileTopicList != null) {
 
       for (File fileTopic : fileTopicList) {
         String topic = fileTopic.getName();
-
+        // TopicTest
+        // ├── 0
+        // ├── 1
+        // ├── 2
+        // └── ...more
+        // 获取 Topic下的队列目录
         File[] fileQueueIdList = fileTopic.listFiles();
         if (fileQueueIdList != null) {
           for (File fileQueueId : fileQueueIdList) {
@@ -1964,6 +1980,7 @@ public class DefaultMessageStore implements MessageStore {
             } catch (NumberFormatException e) {
               continue;
             }
+            // 创建 ConsumeQueue
             ConsumeQueue logic =
                 new ConsumeQueue(
                     topic,
@@ -1972,7 +1989,9 @@ public class DefaultMessageStore implements MessageStore {
                         this.messageStoreConfig.getStorePathRootDir()),
                     this.getMessageStoreConfig().getMappedFileSizeConsumeQueue(),
                     this);
+            // put consumeQueueTable
             this.putConsumeQueue(topic, queueId, logic);
+            // 加载 ConsumeQueue
             if (!logic.load()) {
               return false;
             }
@@ -1993,7 +2012,7 @@ public class DefaultMessageStore implements MessageStore {
    */
   private void recover(final boolean lastExitOK) {
     long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
-
+    // Broker正常停止文件恢复
     if (lastExitOK) {
       this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);
     } else {
@@ -2070,6 +2089,7 @@ public class DefaultMessageStore implements MessageStore {
       for (ConsumeQueue logic : maps.values()) {
         String key = logic.getTopic() + "-" + logic.getQueueId();
         table.put(key, logic.getMaxOffsetInQueue());
+        // 正确的最小偏移量
         logic.correctMinOffset(minPhyOffset);
       }
     }

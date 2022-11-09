@@ -445,11 +445,14 @@ public class ConsumeQueue {
       SelectMappedBufferResult result = mappedFile.selectMappedBuffer(0);
       if (result != null) {
         try {
+          //  ConsumeQueue中的消息大小为20字节
           for (int i = 0; i < result.getSize(); i += ConsumeQueue.CQ_STORE_UNIT_SIZE) {
+            // region 20字节
             long offsetPy = result.getByteBuffer().getLong();
             result.getByteBuffer().getInt();
             long tagsCode = result.getByteBuffer().getLong();
-
+            // endregion
+            // 指针滚动到 CommitLogQueue第一个文件的最小位置，相等或者大于这个值，停止
             if (offsetPy >= phyMinOffset) {
               this.minLogicOffset = mappedFile.getFileFromOffset() + i;
               log.info(
@@ -457,7 +460,7 @@ public class ConsumeQueue {
                   this.getMinOffsetInQueue(),
                   this.topic,
                   this.queueId);
-              // This maybe not take effect, when not every consume queue has extend file.
+              // 当不是每个消费队列都有扩展文件时，这可能不会生效。
               if (isExtAddr(tagsCode)) {
                 minExtAddr = tagsCode;
               }
@@ -471,8 +474,9 @@ public class ConsumeQueue {
         }
       }
     }
-
+    // ? 读扩展启动
     if (isExtReadEnable()) {
+      // 截取最小地址
       this.consumeQueueExt.truncateByMinAddress(minExtAddr);
     }
   }
@@ -866,7 +870,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 马克斯抵消在队列中
+   * 获取队列中的最大偏移量
    *
    * @return long
    */

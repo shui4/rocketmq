@@ -57,18 +57,22 @@ public class IndexService {
 
   public boolean load(final boolean lastExitOK) {
     File dir = new File(this.storePath);
+    // 获取索引目录下的文件
     File[] files = dir.listFiles();
     if (files != null) {
       // ascending order
       Arrays.sort(files);
+      // 代码清单 4-62
       for (File file : files) {
         try {
           IndexFile f = new IndexFile(file.getPath(), this.hashSlotNum, this.indexNum, 0, 0);
           f.load();
-
+          // 如果上一次异常退出
           if (!lastExitOK) {
+            // ? 该文件的最后时间戳 >checkpoint#索引消息最大时间戳
             if (f.getEndTimestamp()
                 > this.defaultMessageStore.getStoreCheckpoint().getIndexMsgTimestamp()) {
+              // 这说明这个文件有故障，进行销毁
               f.destroy(0);
               continue;
             }

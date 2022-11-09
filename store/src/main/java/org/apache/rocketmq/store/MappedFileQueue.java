@@ -139,19 +139,26 @@ public class MappedFileQueue {
    */
   public void truncateDirtyFiles(long offset) {
     List<MappedFile> willRemoveFiles = new ArrayList<MappedFile>();
-
+    // 删除 offset 之后的所有文件。遍历目录下的文件
     for (MappedFile file : this.mappedFiles) {
       long fileTailOffset = file.getFileFromOffset() + this.mappedFileSize;
+      // ? 尾部的偏移量大于 offset ，则进一步比较 offset 与文件的开始偏移量。
       if (fileTailOffset > offset) {
+        //  ? offset 大于文件的起始偏移量，说明当前文件包含了有效偏移量，设置 MappedFile 的 flushedPosition 和 committedPosition
         if (offset >= file.getFileFromOffset()) {
           file.setWrotePosition((int) (offset % this.mappedFileSize));
           file.setCommittedPosition((int) (offset % this.mappedFileSize));
           file.setFlushedPosition((int) (offset % this.mappedFileSize));
-        } else {
+        }
+        //  offset 小 于文件的起始偏移量，说明该文件是有效文件后面创建的，则调用 MappedFile#destory 方法释放 MappedFile
+        // 占用的内存资源（内存映射与内存通道等），
+        //  然后加入待删除文件列表中，最终调用 deleteExpiredFile 将文件从物理磁盘上删除
+        else {
           file.destroy(1000);
           willRemoveFiles.add(file);
         }
       }
+      // 文件的尾部偏移量小于 offset 则跳过该文件
     }
 
     this.deleteExpiredFile(willRemoveFiles);
@@ -204,10 +211,12 @@ public class MappedFileQueue {
    *     <li><code>true</code>──正常
    */
   public boolean doLoad(List<File> files) {
-    // ascending order
+    // 代码清单4-60
+    // 根据文件名升序
     files.sort(Comparator.comparing(File::getName));
 
     for (File file : files) {
+      // ? 如果配置文件大小不一致，将忽略目录下的所有文件，然后创建 MappedFile 对象
       if (file.length() != this.mappedFileSize) {
         log.warn(
             file
@@ -218,6 +227,7 @@ public class MappedFileQueue {
       }
 
       try {
+        // 这里会将 wrotePosition 、 flushedPosition 、 committedPosition 三个指针都设 置为文件大小。
         MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
 
         mappedFile.setWrotePosition(this.mappedFileSize);
