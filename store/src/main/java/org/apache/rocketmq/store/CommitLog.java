@@ -216,7 +216,11 @@ public class CommitLog {
     return null;
   }
 
-  /** 正常退出时，数据恢复，所有内存数据都已flush */
+  /**
+   * 正常退出时，数据恢复，所有内存数据都已flush
+   *
+   * @param maxPhyOffsetOfConsumeQueue 消耗队列最大phy偏移
+   */
   public void recoverNormally(long maxPhyOffsetOfConsumeQueue) {
     // 代码清单4-65
     // ? 在进行文件恢复时查找消息是否验证CRC
@@ -508,9 +512,16 @@ public class CommitLog {
     this.confirmOffset = phyOffset;
   }
 
+  /**
+   * Broker 异常停止文件恢复 <br>
+   * 异常文件恢复与正常停止文件恢复的 步骤基本相同，主要差别有两个：首先，Broker正常停止默认从倒数 第三个文件开始恢复，而异常停止则需要从最后一个文件倒序推进，
+   * 找到第一个消息存储正常的文件；其次，如果CommitLog目录没有消息 文件，在ConsumeQueue目录下存在的文件则需要销毁。
+   *
+   * @param maxPhyOffsetOfConsumeQueue 消耗队列最大phy偏移
+   */
   @Deprecated
   public void recoverAbnormally(long maxPhyOffsetOfConsumeQueue) {
-    // recover by the minimum time stamp
+    // 按最小时间戳恢复
     boolean checkCRCOnRecover =
         this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
     final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
@@ -520,6 +531,7 @@ public class CommitLog {
       MappedFile mappedFile = null;
       for (; index >= 0; index--) {
         mappedFile = mappedFiles.get(index);
+        // ? 消息文件是否正常
         if (this.isMappedFileMatchedRecover(mappedFile)) {
           log.info("recover from this mapped file " + mappedFile.getFileName());
           break;
@@ -596,6 +608,7 @@ public class CommitLog {
       }
     }
     // Commitlog case files are deleted
+    // 如果未找到有效的MappedFile，则设置CommitLog目录的flushedWhere、committedWhere指针都为0，并销毁ConsumeQueue文件
     else {
       log.warn("The commitlog files are deleted, and delete the consume queue files");
       this.mappedFileQueue.setFlushedWhere(0);
@@ -608,6 +621,7 @@ public class CommitLog {
     ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
 
     int magicCode = byteBuffer.getInt(MessageDecoder.MESSAGE_MAGIC_CODE_POSTION);
+    // ? 不符合魔术CODE
     if (magicCode != MESSAGE_MAGIC_CODE) {
       return false;
     }
@@ -616,12 +630,16 @@ public class CommitLog {
     int bornhostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 8 : 20;
     int msgStoreTimePos = 4 + 4 + 4 + 4 + 4 + 8 + 8 + 4 + 8 + bornhostLength;
     long storeTimestamp = byteBuffer.getLong(msgStoreTimePos);
+    // ? 文件中第一条消息的存储时间等于 0
     if (0 == storeTimestamp) {
       return false;
     }
-
+    // checkpoint 文件中保存了 CommitLog 、 ConsumeQueue 、 Index 的文件刷盘点， RocketMQ 默认选择 CommitLog 文
+    // 件与 ConsumeQueue 这两个文件的刷盘点中较小值与 CommitLog 文件第一
+    // 条消息的时间戳做对比，如果 messageIndexEnable 为 true ，表示 Index 文件的刷盘时间点也参与计算对比文件第一条消息的时间戳与检测点
     if (this.defaultMessageStore.getMessageStoreConfig().isMessageIndexEnable()
         && this.defaultMessageStore.getMessageStoreConfig().isMessageIndexSafe()) {
+      // ? 文件第一条消息的时间戳小于文件检测点：说明该文件的部分消息是可靠的，则从该文件开始恢复
       if (storeTimestamp <= this.defaultMessageStore.getStoreCheckpoint().getMinTimestampIndex()) {
         log.info(
             "find check timestamp, {} {}",

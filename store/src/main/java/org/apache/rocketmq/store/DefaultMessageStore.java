@@ -2006,7 +2006,11 @@ public class DefaultMessageStore implements MessageStore {
   }
 
   /**
-   * 恢复
+   * 恢复 <br>
+   * 存储启动时所谓的文件恢复主要完成 flushedPosition 、 committedWhere 指针的设置、将消息消费队列最大偏移量加载到内 存，并删除 flushedPosition
+   * 之后所有的文件。如果 Broker 异常停止， 在文件恢复过程中， RocketMQ 会将最后一个有效文件中的所有消息重 新转发到 ConsumeQueue 和 Index
+   * 文件中，确保不丢失消息，但同时会带 来消息重复的问题。纵观 RocketMQ 的整体设计思想， RocketMQ 保证消息 不丢失但不保证消息不会重复消费，故消息消费业务方需要实现消息
+   * 消费的幂等设计
    *
    * @param lastExitOK 最后一个出口正常
    */

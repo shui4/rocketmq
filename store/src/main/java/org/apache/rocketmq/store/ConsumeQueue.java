@@ -852,6 +852,8 @@ public class ConsumeQueue {
 
   /** 摧毁 */
   public void destroy() {
+    // 重置 ConsumeQueue 的 maxPhysicOffset 与 minLogicOffset ，然后调 用 MappedFileQueue 的 destroy() 方法将
+    // ConsumeQueue 目录下的文件全部删除
     this.maxPhysicOffset = -1;
     this.minLogicOffset = 0;
     this.mappedFileQueue.destroy();
