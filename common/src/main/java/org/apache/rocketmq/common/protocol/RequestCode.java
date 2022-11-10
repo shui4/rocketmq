@@ -146,7 +146,9 @@ public class RequestCode {
 
   public static final int QUERY_CORRECTION_OFFSET = 308;
   public static final int CONSUME_MESSAGE_DIRECTLY = 309;
-
+  /**
+   * 发送消息CODE
+   */
   public static final int SEND_MESSAGE_V2 = 310;
 
   public static final int GET_UNIT_TOPIC_LIST = 311;

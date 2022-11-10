@@ -746,7 +746,7 @@ public class CommitLog {
 
     long elapsedTimeInLock = 0;
     MappedFile unlockMappedFile = null;
-    // 上锁（自旋锁、可重入锁）
+    // 上锁（自旋锁、可重入锁(默认)）
     putMessageLock.lock(); // spin or ReentrantLock ,depending on store config
     try {
       // 代码清单4-1
@@ -991,6 +991,7 @@ public class CommitLog {
   public CompletableFuture<PutMessageStatus> submitFlushRequest(
       AppendMessageResult result, MessageExt messageExt) {
     // Synchronization flush
+    // ? 同步刷新
     if (FlushDiskType.SYNC_FLUSH
         == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
       final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
@@ -1002,12 +1003,14 @@ public class CommitLog {
         flushDiskWatcher.add(request);
         service.putRequest(request);
         return request.future();
-      } else {
+      }
+
+      else {
         service.wakeup();
         return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
       }
     }
-    // Asynchronous flush
+    // 异步刷新
     else {
       if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
         flushCommitLogService.wakeup();
@@ -1344,7 +1347,9 @@ public class CommitLog {
   }
 
   public static class GroupCommitRequest {
+    /** 刷盘点偏移量 */
     private final long nextOffset;
+
     private CompletableFuture<PutMessageStatus> flushOKFuture = new CompletableFuture<>();
     private final long deadLine;
 
@@ -1362,6 +1367,7 @@ public class CommitLog {
     }
 
     public void wakeupCustomer(final PutMessageStatus putMessageStatus) {
+      // 完成
       this.flushOKFuture.complete(putMessageStatus);
     }
 
