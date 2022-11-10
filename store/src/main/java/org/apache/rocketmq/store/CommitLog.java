@@ -1003,9 +1003,7 @@ public class CommitLog {
         flushDiskWatcher.add(request);
         service.putRequest(request);
         return request.future();
-      }
-
-      else {
+      } else {
         service.wakeup();
         return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
       }
@@ -1376,7 +1374,10 @@ public class CommitLog {
     }
   }
 
-  /** GroupCommit Service */
+  /**
+   * GroupCommit Service<br>
+   * 每 10 秒毫秒定时刷盘
+   */
   class GroupCommitService extends FlushCommitLogService {
     private volatile LinkedList<GroupCommitRequest> requestsWrite =
         new LinkedList<GroupCommitRequest>();

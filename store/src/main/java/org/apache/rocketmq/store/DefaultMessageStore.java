@@ -598,6 +598,7 @@ public class DefaultMessageStore implements MessageStore {
                 elapsedTime,
                 msg.getBody().length);
           }
+          // 设置放置消息整个时间最大值
           this.storeStatsService.setPutMessageEntireTimeMax(elapsedTime);
 
           if (null == result || !result.isOk()) {
