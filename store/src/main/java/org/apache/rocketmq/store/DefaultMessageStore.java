@@ -1837,9 +1837,10 @@ public class DefaultMessageStore implements MessageStore {
     log.info(fileName + (result ? " create OK" : " already exists"));
   }
 
-  /** 添加计划任务 */
+  /** 添加定时任务 */
   private void addScheduleTask() {
-
+    // 默认 10 秒 this.messageStoreConfig.getCleanResourceInterval(),
+    // 定期清理文件
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
           @Override
@@ -1913,7 +1914,9 @@ public class DefaultMessageStore implements MessageStore {
 
   /** 定期清理文件 */
   private void cleanFilesPeriodically() {
+    // 执行清理 commit log 任务
     this.cleanCommitLogService.run();
+    // 执行清理 consume queue 任务
     this.cleanConsumeQueueService.run();
   }
 
@@ -2415,11 +2418,11 @@ public class DefaultMessageStore implements MessageStore {
       DefaultMessageStore.log.info("executeDeleteFilesManually was invoked");
     }
 
-    /** 跑 */
     public void run() {
       try {
+        // 删除过期文件
         this.deleteExpiredFiles();
-
+        // 重新删除挂起的文件
         this.redeleteHangedFile();
       } catch (Throwable e) {
         DefaultMessageStore.log.warn(this.getServiceName() + " service has exception. ", e);
@@ -2429,21 +2432,30 @@ public class DefaultMessageStore implements MessageStore {
     /** 删除过期文件 */
     private void deleteExpiredFiles() {
       int deleteCount = 0;
+      // 文件过期时间阈值，默认 72 小时
       long fileReservedTime =
           DefaultMessageStore.this.getMessageStoreConfig().getFileReservedTime();
+      // 删除物理文件的间隔时间，默认100
+      // 一次清除过程中，可能需要被删除的文件不止一个，该值指定两次删除文件的间隔时间
       int deletePhysicFilesInterval =
           DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
+      // 强制销毁映射文件间隔，默认值 120_000
+      // ，如果该文件被其它线程占用（引用次数大于0，比如读取消息），此时会阻止此次删除任务，同时在第一次视图删除该文件时记录当前时间戳，
+      // destroyMapedFileIntervalForcibly  表示
+      // 第一次拒绝之后能保留文件的最大时间，在此时间内，同时可以被拒绝删除，超过该时间后，会将引用次数设置为负数，文件将被强制删除
       int destroyMapedFileIntervalForcibly =
           DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
-
+      // ? 当前时间是否可以删除，看当前时间是否匹配 deleteWhen 配置，默认凌晨 4 点
       boolean timeup = this.isTimeToDelete();
+      // ? 磁盘空间满了
       boolean spacefull = this.isSpaceToDelete();
+      // 多次手动删除
       boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;
-
+      // ? timeup 或者 spacefull 或者 manualDelete
       if (timeup || spacefull || manualDelete) {
 
         if (manualDelete) this.manualDeleteFileSeveralTimes--;
-
+        // ? 强制删除 以及 立即删除
         boolean cleanAtOnce =
             DefaultMessageStore.this.getMessageStoreConfig().isCleanFileForciblyEnable()
                 && this.cleanImmediately;
@@ -2465,7 +2477,10 @@ public class DefaultMessageStore implements MessageStore {
                 destroyMapedFileIntervalForcibly,
                 cleanAtOnce);
         if (deleteCount > 0) {
-        } else if (spacefull) {
+        }
+        // 删除结尾为 0
+        else if (spacefull) {
+          // 磁盘空间即将满，但删除文件失败。
           log.warn("disk space will be full soon, but delete file failed.");
         }
       }
@@ -2510,18 +2525,21 @@ public class DefaultMessageStore implements MessageStore {
     }
 
     /**
-     * 是要删除空间
+     * 磁盘满了，需要删除
      *
      * @return boolean
      */
     private boolean isSpaceToDelete() {
+      // 阈值：10~95，默认为75
       double ratio =
           DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
 
       cleanImmediately = false;
 
       {
+        // 获取存储物理路径，默认 （ user.home/store/commitlog ）
         String commitLogStorePath = DefaultMessageStore.this.getStorePathPhysic();
+        /// commitLogStorePath 多存储路径，用逗号分割
         String[] storePaths =
             commitLogStorePath.trim().split(MessageStoreConfig.MULTI_PATH_SPLITTER);
         Set<String> fullStorePath = new HashSet<>();
@@ -2530,14 +2548,20 @@ public class DefaultMessageStore implements MessageStore {
         for (String storePathPhysic : storePaths) {
           double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
           if (minPhysicRatio > physicRatio) {
+            // 最小阈值
             minPhysicRatio = physicRatio;
+            // 最小 store 目录路径
             minStorePath = storePathPhysic;
           }
+          // diskSpaceCleanForciblyRatio 默认为 0.85
+          // ? 超过改值，加入 fullStorePath（强制删除路径）
           if (physicRatio > diskSpaceCleanForciblyRatio) {
             fullStorePath.add(storePathPhysic);
           }
         }
         DefaultMessageStore.this.commitLog.setFullStorePaths(fullStorePath);
+        // ? 当前最小比例超过 0.95，
+        // 看着打印error日志 ，并且设置立即清理字段 cleanImmediately 为 true
         if (minPhysicRatio > diskSpaceWarningLevelRatio) {
           boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
           if (diskok) {
@@ -2549,9 +2573,14 @@ public class DefaultMessageStore implements MessageStore {
           }
 
           cleanImmediately = true;
-        } else if (minPhysicRatio > diskSpaceCleanForciblyRatio) {
+        }
+        // ? 当前最小比例超过强制清理阈值
+        // 设置立即清理字段 cleanImmediately 为 true
+        else if (minPhysicRatio > diskSpaceCleanForciblyRatio) {
           cleanImmediately = true;
-        } else {
+        }
+        // 看着打印
+        else {
           boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskOK();
           if (!diskok) {
             DefaultMessageStore.log.info(
@@ -2561,7 +2590,7 @@ public class DefaultMessageStore implements MessageStore {
                     + minStorePath);
           }
         }
-
+        // ? 当前最小比例小于 0 或者超过 0.75
         if (minPhysicRatio < 0 || minPhysicRatio > ratio) {
           DefaultMessageStore.log.info(
               "physic disk maybe full soon, so reclaim space, "
@@ -2571,7 +2600,7 @@ public class DefaultMessageStore implements MessageStore {
           return true;
         }
       }
-
+      // ConsumeQueue 目录，与上面类似
       {
         String storePathLogics = DefaultMessageStore.this.getStorePathLogic();
         double logicsRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathLogics);

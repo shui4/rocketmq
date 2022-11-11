@@ -31,6 +31,7 @@ public class MessageStoreConfig {
   private String storePathRootDir = System.getProperty("user.home") + File.separator + "store";
 
   // The directory in which the commitlog is kept
+  /** commit log 的目录，多个用逗号隔开，或者 {@link MessageStoreConfig#MULTI_PATH_SPLITTER} 设置其它分割符 */
   @ImportantField
   private String storePathCommitLog =
       System.getProperty("user.home") + File.separator + "store" + File.separator + "commitlog";
@@ -70,15 +71,29 @@ public class MessageStoreConfig {
   // Resource reclaim interval
   private int cleanResourceInterval = 10000;
   // CommitLog removal interval
+  /** CommitLog 删除间隔 */
   private int deleteCommitLogFilesInterval = 100;
   // ConsumeQueue removal interval
   private int deleteConsumeQueueFilesInterval = 100;
+  /**
+   * 强制销毁映射文件间隔<br>
+   * 在清除过期文件时，如 果该文件被其他线程占用（引用次数大于 0 ，比如读取消息），此时会 阻止此次删除任务，同时在第一次试图删除该文件时记录当前时间 戳， *
+   * destroyMapedFileIntervalForcibly 表示第一次拒绝删除之后能 保留文件的最大时间，在此时间内，同样可以被拒绝删除，超过该时 *
+   * 间后，会将引用次数设置为负数，文件将被强制删除
+   */
   private int destroyMapedFileIntervalForcibly = 1000 * 120;
+
   private int redeleteHangedFileInterval = 1000 * 120;
   // When to delete,default is at 4 am
+  /** 何时删除，默认为凌晨 4 点， 多个用逗号隔开 */
   @ImportantField private String deleteWhen = "04";
+
   private int diskMaxUsedSpaceRatio = 75;
   // The number of hours to keep a log file before deleting it (in hours)
+  /**
+   * 文件保留时间，单位小时。<br>
+   * 过期文件保留的时间，超过这个时间之后将被删除。过期文件：非当前写文件
+   */
   @ImportantField private int fileReservedTime = 72;
   // Flow control for ConsumeQueue
   private int putMsgIndexHightWater = 600000;

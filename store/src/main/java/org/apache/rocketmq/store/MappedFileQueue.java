@@ -479,23 +479,30 @@ public class MappedFileQueue {
     if (null != mfs) {
       for (int i = 0; i < mfsLength; i++) {
         MappedFile mappedFile = (MappedFile) mfs[i];
+        // 修改修改时间+72小时（默认值）
         long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
+        // ? 当前时间 超过 liveMaxTimestamp
         if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
+          // ? 释放成功
           if (mappedFile.destroy(intervalForcibly)) {
             files.add(mappedFile);
             deleteCount++;
-
+            // ? 超过 10个文件
+            // 结束循环
             if (files.size() >= DELETE_FILES_BATCH_MAX) {
               break;
             }
-
+            // ? !@#!@%!@%
+            // sleep
             if (deleteFilesInterval > 0 && (i + 1) < mfsLength) {
               try {
                 Thread.sleep(deleteFilesInterval);
               } catch (InterruptedException e) {
               }
             }
-          } else {
+          }
+          // 释放失败，结束循环
+          else {
             break;
           }
         } else {
@@ -505,6 +512,7 @@ public class MappedFileQueue {
       }
     }
 
+    // 删除 files 中的文件
     deleteExpiredFile(files);
 
     return deleteCount;
