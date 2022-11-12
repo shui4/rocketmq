@@ -70,11 +70,7 @@ import org.apache.rocketmq.store.index.QueryOffsetResult;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 import org.apache.rocketmq.store.stats.BrokerStatsManager;
 
-/**
- * 文件存储API
- *
- * @author shui4
- */
+/** 文件存储API，其它模块对于消息存储都是通过它进行 */
 public class DefaultMessageStore implements MessageStore {
   /** 日志 */
   private static final InternalLogger log =
@@ -86,33 +82,30 @@ public class DefaultMessageStore implements MessageStore {
   // CommitLog
   private final CommitLog commitLog;
 
-  /** 消费队列表 */
+  /** 消息队列存储缓存表， 按消息主题分组 */
   private final ConcurrentMap<
           String /* topic */, ConcurrentMap<Integer /* queueId */, ConsumeQueue>>
       consumeQueueTable;
 
-  /** 刷新消费队列服务 */
+  /** {@link ConsumeQueue} 文件刷盘线程 */
   private final FlushConsumeQueueService flushConsumeQueueService;
 
-  /** 清理提交日志服务 */
+  /** 清除 CommitLog 文件服务 */
   private final CleanCommitLogService cleanCommitLogService;
 
-  /** 清洁消费队列服务 */
+  /** 清除 ConsumeQueue 文件服务 */
   private final CleanConsumeQueueService cleanConsumeQueueService;
 
-  /** 索引服务 */
+  /** Index 文件服务 */
   private final IndexService indexService;
 
-  /** 分配映射文件服务 */
+  /** MappedFile分配服务 */
   private final AllocateMappedFileService allocateMappedFileService;
 
-  /**
-   * 转发消息服务<br>
-   * 将消息转发给{@link ConsumeQueue}
-   */
+  /** CommitLog 消息分发，根据 CommitLog 文件构建 ConsumeQueue 、 Index 文件 */
   private final ReputMessageService reputMessageService;
 
-  /** 医管局服务 */
+  /** 存储高可用机制 */
   private final HAService haService;
 
   /** 消息调度服务 */
@@ -121,7 +114,7 @@ public class DefaultMessageStore implements MessageStore {
   /** 商店统计服务 */
   private final StoreStatsService storeStatsService;
 
-  /** 临时存储池 */
+  /** 消息堆内存缓存池 */
   private final TransientStorePool transientStorePool;
 
   /** 运行标志 */
@@ -134,16 +127,16 @@ public class DefaultMessageStore implements MessageStore {
       Executors.newSingleThreadScheduledExecutor(new ThreadFactoryImpl("StoreScheduledThread"));
   /** 经纪人统计管理器 */
   private final BrokerStatsManager brokerStatsManager;
-  /** 消息到达侦听器 */
+  /** 在消息拉取长轮询模式下的消息达到监听器 */
   private final MessageArrivingListener messageArrivingListener;
 
-  /** 代理配置 */
+  /** Broker配置属性 */
   private final BrokerConfig brokerConfig;
 
   /** 停机 */
   private volatile boolean shutdown = true;
 
-  /** 存储检查点 */
+  /** 文件刷盘监测点 */
   private StoreCheckpoint storeCheckpoint;
 
   /** 打印次数 */
@@ -152,7 +145,7 @@ public class DefaultMessageStore implements MessageStore {
   /** lmq消耗队列编号 */
   private final AtomicInteger lmqConsumeQueueNum = new AtomicInteger(0);
 
-  /** 调度程序列表 */
+  /** CommitLog 文件转发请求 */
   private final LinkedList<CommitLogDispatcher> dispatcherList;
 
   /** 锁定文件 */
