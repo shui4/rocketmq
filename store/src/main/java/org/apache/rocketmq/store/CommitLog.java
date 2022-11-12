@@ -990,7 +990,6 @@ public class CommitLog {
 
   public CompletableFuture<PutMessageStatus> submitFlushRequest(
       AppendMessageResult result, MessageExt messageExt) {
-    // Synchronization flush
     // ? 同步刷新
     if (FlushDiskType.SYNC_FLUSH
         == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
@@ -1021,6 +1020,7 @@ public class CommitLog {
 
   public CompletableFuture<PutMessageStatus> submitReplicaRequest(
       AppendMessageResult result, MessageExt messageExt) {
+    // ? 同步复制
     if (BrokerRole.SYNC_MASTER
         == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
       HAService service = this.defaultMessageStore.getHaService();

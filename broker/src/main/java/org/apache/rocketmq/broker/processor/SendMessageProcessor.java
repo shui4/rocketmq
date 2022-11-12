@@ -99,6 +99,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       case RequestCode.CONSUMER_SEND_MSG_BACK:
         return this.asyncConsumerSendMsgBack(ctx, request);
       default:
+        // 解析请求头
         SendMessageRequestHeader requestHeader = parseRequestHeader(request);
         if (requestHeader == null) {
           return CompletableFuture.completedFuture(null);
