@@ -16,11 +16,6 @@
  */
 package org.apache.rocketmq.store;
 
-import java.io.File;
-import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.rocketmq.common.MixAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.common.message.MessageConst;
@@ -28,6 +23,11 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.BrokerRole;
 import org.apache.rocketmq.store.config.StorePathConfigHelper;
+
+import java.io.File;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 消费队列 <br>
@@ -52,12 +52,11 @@ import org.apache.rocketmq.store.config.StorePathConfigHelper;
  * 件，其构建机制是当消息到达 CommitLog 文件后，由专门的线程产生消 * 息转发任务，从而构建 ConsumeQueue 文件与 Index 文件
  */
 public class ConsumeQueue {
+  /** cq存储单元大小 */
+  public static final int CQ_STORE_UNIT_SIZE = 20;
   /** 日志 */
   private static final InternalLogger log =
       InternalLoggerFactory.getLogger(LoggerName.STORE_LOGGER_NAME);
-
-  /** cq存储单元大小 */
-  public static final int CQ_STORE_UNIT_SIZE = 20;
   /** 错误日志 */
   private static final InternalLogger LOG_ERROR =
       InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
@@ -80,7 +79,7 @@ public class ConsumeQueue {
   private final int mappedFileSize;
   /** 最大物理抵消 */
   private long maxPhysicOffset = -1;
-  /** 最小值逻辑抵消 */
+  /** 最小逻辑偏移量 */
   private volatile long minLogicOffset = 0;
   /** 使用队列ext */
   private ConsumeQueueExt consumeQueueExt = null;
@@ -138,6 +137,15 @@ public class ConsumeQueue {
       result &= this.consumeQueueExt.load();
     }
     return result;
+  }
+
+  /**
+   * ext阅读使
+   *
+   * @return boolean
+   */
+  protected boolean isExtReadEnable() {
+    return this.consumeQueueExt != null;
   }
 
   /** 恢复 */
@@ -216,6 +224,15 @@ public class ConsumeQueue {
         this.consumeQueueExt.truncateByMaxAddress(maxExtAddr);
       }
     }
+  }
+
+  /**
+   * 是ext addr Check {@code tagsCode} is address of extend file or tags code. @param tagsCode 标签代码
+   *
+   * @return boolean
+   */
+  public boolean isExtAddr(long tagsCode) {
+    return ConsumeQueueExt.isExtAddr(tagsCode);
   }
 
   /**
@@ -566,75 +583,13 @@ public class ConsumeQueue {
   }
 
   /**
-   * 多分派lmq队列
+   * ext写启用
    *
-   * @param request 请求
-   * @param maxRetries 马克斯重试
+   * @return boolean
    */
-  private void multiDispatchLmqQueue(DispatchRequest request, int maxRetries) {
-    Map<String, String> prop = request.getPropertiesMap();
-    String multiDispatchQueue = prop.get(MessageConst.PROPERTY_INNER_MULTI_DISPATCH);
-    String multiQueueOffset = prop.get(MessageConst.PROPERTY_INNER_MULTI_QUEUE_OFFSET);
-    String[] queues = multiDispatchQueue.split(MixAll.MULTI_DISPATCH_QUEUE_SPLITTER);
-    String[] queueOffsets = multiQueueOffset.split(MixAll.MULTI_DISPATCH_QUEUE_SPLITTER);
-    if (queues.length != queueOffsets.length) {
-      log.error("[bug] queues.length!=queueOffsets.length ", request.getTopic());
-      return;
-    }
-    for (int i = 0; i < queues.length; i++) {
-      String queueName = queues[i];
-      long queueOffset = Long.parseLong(queueOffsets[i]);
-      int queueId = request.getQueueId();
-      if (this.defaultMessageStore.getMessageStoreConfig().isEnableLmq()
-          && MixAll.isLmq(queueName)) {
-        queueId = 0;
-      }
-      doDispatchLmqQueue(request, maxRetries, queueName, queueOffset, queueId);
-    }
-    return;
-  }
-
-  /**
-   * 做派遣lmq队列
-   *
-   * @param request 请求
-   * @param maxRetries 马克斯重试
-   * @param queueName 队列名称
-   * @param queueOffset 队列抵消
-   * @param queueId 队列id
-   */
-  private void doDispatchLmqQueue(
-      DispatchRequest request, int maxRetries, String queueName, long queueOffset, int queueId) {
-    ConsumeQueue cq = this.defaultMessageStore.findConsumeQueue(queueName, queueId);
-    boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
-    for (int i = 0; i < maxRetries && canWrite; i++) {
-      boolean result =
-          cq.putMessagePositionInfo(
-              request.getCommitLogOffset(),
-              request.getMsgSize(),
-              request.getTagsCode(),
-              queueOffset);
-      if (result) {
-        break;
-      } else {
-        log.warn(
-            "[BUG]put commit log position info to "
-                + queueName
-                + ":"
-                + queueId
-                + " "
-                + request.getCommitLogOffset()
-                + " failed, retry "
-                + i
-                + " times");
-
-        try {
-          Thread.sleep(1000);
-        } catch (InterruptedException e) {
-          log.warn("", e);
-        }
-      }
-    }
+  protected boolean isExtWriteEnable() {
+    return this.consumeQueueExt != null
+        && this.defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt();
   }
 
   /**
@@ -718,6 +673,34 @@ public class ConsumeQueue {
   }
 
   /**
+   * 多分派lmq队列
+   *
+   * @param request 请求
+   * @param maxRetries 马克斯重试
+   */
+  private void multiDispatchLmqQueue(DispatchRequest request, int maxRetries) {
+    Map<String, String> prop = request.getPropertiesMap();
+    String multiDispatchQueue = prop.get(MessageConst.PROPERTY_INNER_MULTI_DISPATCH);
+    String multiQueueOffset = prop.get(MessageConst.PROPERTY_INNER_MULTI_QUEUE_OFFSET);
+    String[] queues = multiDispatchQueue.split(MixAll.MULTI_DISPATCH_QUEUE_SPLITTER);
+    String[] queueOffsets = multiQueueOffset.split(MixAll.MULTI_DISPATCH_QUEUE_SPLITTER);
+    if (queues.length != queueOffsets.length) {
+      log.error("[bug] queues.length!=queueOffsets.length ", request.getTopic());
+      return;
+    }
+    for (int i = 0; i < queues.length; i++) {
+      String queueName = queues[i];
+      long queueOffset = Long.parseLong(queueOffsets[i]);
+      int queueId = request.getQueueId();
+      if (this.defaultMessageStore.getMessageStoreConfig().isEnableLmq()
+          && MixAll.isLmq(queueName)) {
+        queueId = 0;
+      }
+      doDispatchLmqQueue(request, maxRetries, queueName, queueOffset, queueId);
+    }
+  }
+
+  /**
    * 填补之前空白
    *
    * @param mappedFile 映射文件
@@ -736,6 +719,49 @@ public class ConsumeQueue {
   }
 
   /**
+   * 做派遣lmq队列
+   *
+   * @param request 请求
+   * @param maxRetries 马克斯重试
+   * @param queueName 队列名称
+   * @param queueOffset 队列抵消
+   * @param queueId 队列id
+   */
+  private void doDispatchLmqQueue(
+      DispatchRequest request, int maxRetries, String queueName, long queueOffset, int queueId) {
+    ConsumeQueue cq = this.defaultMessageStore.findConsumeQueue(queueName, queueId);
+    boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
+    for (int i = 0; i < maxRetries && canWrite; i++) {
+      boolean result =
+          cq.putMessagePositionInfo(
+              request.getCommitLogOffset(),
+              request.getMsgSize(),
+              request.getTagsCode(),
+              queueOffset);
+      if (result) {
+        break;
+      } else {
+        log.warn(
+            "[BUG]put commit log position info to "
+                + queueName
+                + ":"
+                + queueId
+                + " "
+                + request.getCommitLogOffset()
+                + " failed, retry "
+                + i
+                + " times");
+
+        try {
+          Thread.sleep(1000);
+        } catch (InterruptedException e) {
+          log.warn("", e);
+        }
+      }
+    }
+  }
+
+  /**
    * 代码清单4-33 <br>
    * 得到索引缓冲区
    *
@@ -744,7 +770,7 @@ public class ConsumeQueue {
    */
   public SelectMappedBufferResult getIndexBuffer(final long startIndex) {
     int mappedFileSize = this.mappedFileSize;
-    // 计算 逻辑偏移量
+    // 计算 物理偏移量，由于 ConsumeQueue 中的条目固定为 20 ，这里根据 下标 × 20，得出所在文件的偏移量
     long offset = startIndex * CQ_STORE_UNIT_SIZE;
     // ? 偏移量 >= 最小逻辑偏移量
     if (offset >= this.getMinLogicOffset()) {
@@ -757,6 +783,22 @@ public class ConsumeQueue {
     }
     // 偏移量 < 最小逻辑偏移量， null
     return null;
+  }
+
+  /**
+   * @return 最小逻辑偏移量
+   */
+  public long getMinLogicOffset() {
+    return minLogicOffset;
+  }
+
+  /**
+   * 设置最小逻辑抵消
+   *
+   * @param minLogicOffset 最小值逻辑抵消
+   */
+  public void setMinLogicOffset(long minLogicOffset) {
+    this.minLogicOffset = minLogicOffset;
   }
 
   /**
@@ -784,22 +826,6 @@ public class ConsumeQueue {
       return this.consumeQueueExt.get(offset, cqExtUnit);
     }
     return false;
-  }
-
-  /**
-   * @return 最小逻辑偏移量
-   */
-  public long getMinLogicOffset() {
-    return minLogicOffset;
-  }
-
-  /**
-   * 设置最小逻辑抵消
-   *
-   * @param minLogicOffset 最小值逻辑抵消
-   */
-  public void setMinLogicOffset(long minLogicOffset) {
-    this.minLogicOffset = minLogicOffset;
   }
 
   /**
@@ -886,33 +912,5 @@ public class ConsumeQueue {
     if (isExtReadEnable()) {
       this.consumeQueueExt.checkSelf();
     }
-  }
-
-  /**
-   * ext阅读使
-   *
-   * @return boolean
-   */
-  protected boolean isExtReadEnable() {
-    return this.consumeQueueExt != null;
-  }
-
-  /**
-   * ext写启用
-   *
-   * @return boolean
-   */
-  protected boolean isExtWriteEnable() {
-    return this.consumeQueueExt != null
-        && this.defaultMessageStore.getMessageStoreConfig().isEnableConsumeQueueExt();
-  }
-
-  /**
-   * 是ext addr Check {@code tagsCode} is address of extend file or tags code. @param tagsCode 标签代码
-   *
-   * @return boolean
-   */
-  public boolean isExtAddr(long tagsCode) {
-    return ConsumeQueueExt.isExtAddr(tagsCode);
   }
 }
