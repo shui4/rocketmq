@@ -29,9 +29,10 @@ import org.apache.rocketmq.store.util.LibC;
 import sun.nio.ch.DirectBuffer;
 
 /**
- * 短暂的存储池
- *
- * @author shui4
+ * TransientStorePool 即短暂的存储池。 RocketMQ 单独创建了一个 DirectByteBuffer 内存缓存池，用来临时存储数据，数据先写入该内 * 存映射中，然后由
+ * Commit 线程定时将数据从该内存复制到与目标物理 文件对应的内存映射中。 RocketMQ 引入该机制是为了提供一种内存锁 * 定，将当前堆外内存一直锁定在内存中，避免被进程将内存交换到磁
+ * 盘中。 <br>
+ * 它在 低配磁盘中可以考虑，但这可能因broker挂掉造成数据丢失
  */
 public class TransientStorePool {
   /** 日志 */

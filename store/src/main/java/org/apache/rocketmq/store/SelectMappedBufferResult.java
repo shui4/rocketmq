@@ -20,6 +20,9 @@ import java.nio.ByteBuffer;
 
 public class SelectMappedBufferResult {
 
+    /**
+     * 起始偏移量，物理的
+     */
     private final long startOffset;
 
     private final ByteBuffer byteBuffer;

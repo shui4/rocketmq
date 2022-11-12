@@ -70,6 +70,7 @@ public class MappedFile extends ReferenceResource {
   protected int fileSize;
   /** 文件通道 */
   protected FileChannel fileChannel;
+  // region isTransientStorePoolEnable 相关
   /**
    * 堆外内存ByteBuffer，如果不为空，数据首先将存储在 该Buffer中，然后提交MappedFile创建的FileChannel中。{@link
    * MessageStoreConfig#isTransientStorePoolEnable()}为true时不为空
@@ -78,8 +79,8 @@ public class MappedFile extends ReferenceResource {
   /**
    * 堆外内存池，该内存池中的内存会提供内存锁机制。{@link MessageStoreConfig#setTransientStorePoolEnable(boolean)}为true时启用
    */
-  /** 瞬态存储池 */
   protected TransientStorePool transientStorePool = null;
+  // endregion
   /** 文件名 */
   private String fileName;
   // 文件逻辑偏移量，即文件名
@@ -358,6 +359,7 @@ public class MappedFile extends ReferenceResource {
         }
 
         this.flushedPosition.set(value);
+        // 释放，取消占用即引用计数器 -1
         this.release();
       } else {
         log.warn("in flush, hold failed, flush offset = " + this.flushedPosition.get());
@@ -368,7 +370,7 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
-   * 提交，将堆外内存数据提交到内存映射上<br>
+   * 提交，将堆外内存数据提交到内存映射上，只有 transientStorePoolEnable 这个动作才会生效 <br>
    * 代码清单4-18
    *
    * @param commitLeastPages 本次提交的最小页数，如果待提交数据不满足 commitLeastPages ，则不执行本次提交操作，等待下次提交
@@ -383,13 +385,15 @@ public class MappedFile extends ReferenceResource {
     if (this.isAbleToCommit(commitLeastPages)) {
       if (this.hold()) {
         commit0();
+        // 释放，到引用计数器 -1 ，因为前面才 commit0() 方法对引用计数器 +1 了，
+        // 这里如果 引用计数器 为 0 ，并且为不可用状态， mappedByteBuffer( 内存映射 ) 将被销毁
         this.release();
       } else {
         log.warn("in commit, hold failed, commit offset = " + this.committedPosition.get());
       }
     }
 
-    // ? 所有脏数据都已提交到 FileChannel。
+    // 文件写满，并且 transientStorePool 不为空以及 writeBuffer 堆外内存不为空，那它现在就不需要了，进行回收
     if (writeBuffer != null
         && this.transientStorePool != null
         && this.fileSize == this.committedPosition.get()) {
@@ -421,7 +425,7 @@ public class MappedFile extends ReferenceResource {
   private boolean isAbleToFlush(final int flushLeastPages) {
     int flush = this.flushedPosition.get();
     int write = getReadPosition();
-
+    // ? 满了
     if (this.isFull()) {
       return true;
     }
@@ -440,12 +444,11 @@ public class MappedFile extends ReferenceResource {
     if (this.isFull()) {
       return true;
     }
-    // ? commitLeastPages>0
     if (commitLeastPages > 0) {
       // ? 堆外内存写指针转换的page  与  已提交到内存映射指针转换的page 相差（称为脏页数量） 超过 commitLeastPages
       return ((write / OS_PAGE_SIZE) - (flush / OS_PAGE_SIZE)) >= commitLeastPages;
     }
-    // ? commitLeastPages>0
+    // commitLeastPages<0
     return write > flush;
   }
 
@@ -491,11 +494,12 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
-   * @param pos 起始指针
+   * @param pos 查询它之后的可用信息
    * @return 查询映射内存
    */
   public SelectMappedBufferResult selectMappedBuffer(int pos) {
     int readPosition = getReadPosition();
+    // pos between 0,readPosition
     if (pos < readPosition && pos >= 0) {
       if (this.hold()) {
         ByteBuffer byteBuffer = this.mappedByteBuffer.slice();
@@ -541,14 +545,17 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
-   * 摧毁
+   * 销毁
    *
-   * @param intervalForcibly 强行的间隔
+   * @param intervalForcibly 强制间隔时间，单位：毫秒，多次尝试销毁，由于其它线程占用该资源因此销毁失败（引用计数器>0），
+   *     对于重复执行该方法，如果在此间隔范围内，则直接忽略
    * @return boolean
    */
   public boolean destroy(final long intervalForcibly) {
+    // 销毁资源
     this.shutdown(intervalForcibly);
-
+    // ? 清理结束了，因为上面的方法不一定能成功销毁，因为可能有其它线程正在访问（引用计数器>0）
+    // 关闭文件通道、删除文件
     if (this.isCleanupOver()) {
       try {
         // 关闭文件通道
@@ -602,7 +609,7 @@ public class MappedFile extends ReferenceResource {
   }
 
   /**
-   * 获取 最大可读指针，如果启用 transientStorePoolEnable，则会读 committedPosition（内存映射读指针），因为这才是安全的数据
+   * 获取 最大可读指针，如果启用 transientStorePoolEnable，则会读 committedPosition（内存映射读指针），因为这才是可靠的信息
    *
    * @return 有有效数据的最大位置
    */
