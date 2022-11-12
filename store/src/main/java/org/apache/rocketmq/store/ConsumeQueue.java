@@ -491,7 +491,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 把包装信息位置信息
+   * 放置消息位置信息包装器
    *
    * @param request 请求
    * @param multiQueue 多队列
@@ -638,12 +638,12 @@ public class ConsumeQueue {
   }
 
   /**
-   * 把消息位置信息
+   * 放置消息 位置信息
    *
-   * @param offset 抵消
+   * @param offset 偏移量
    * @param size 大小
-   * @param tagsCode 标签代码
-   * @param cqOffset cq抵消
+   * @param tagsCode tags code
+   * @param cqOffset 消费队列偏移量
    * @return boolean
    */
   private boolean putMessagePositionInfo(

@@ -77,9 +77,30 @@ RocketMQ消息发送需要考虑3个问题：
 ### RocketMQ存储概要设计
 
 - 文件：ComitLog、ConsumeQueue、Index。
+
 - ComitLog：所有主题消息存在在同一个文件中，确保消息发送时顺序写文件。
+
 - ConsumeQueue：每个消息主题包含多个消息队列，每个消息队列有一个消息文件。
+
+  ​	结构：
+
+  - commitlog偏移量，（8字节）
+
+  - commitlog大小（4字节）
+
+  - tag哈希码（8字节）
+
+    <img src="./img/image-20221112104917316.png" alt="image-20221112104917316" style="zoom: 80%;" />
+
+    <center>ConsumeQueue文件条目结构</center>
+
+  
+
 - Index：加速消息的检索性能，根据消息的属性从ComitLog中快速检索消息。
+
+  - 
+
+  
 
 ---
 
@@ -88,6 +109,8 @@ RocketMQ消息发送需要考虑3个问题：
 1. ComitLog：消息存储在这里。
 2. ConsumeQueue：消息消费队列，消息到达ComitLog文件后，将异步转发到ConsumeQueue文件中，供消费者消费。
 3. Index：消息索引，主要存在消息key与offset的对应关系。
+
+> 异步转发工作由`ReputMessageService`处理
 
 ---
 

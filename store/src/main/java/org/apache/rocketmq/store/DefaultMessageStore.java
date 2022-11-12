@@ -106,7 +106,10 @@ public class DefaultMessageStore implements MessageStore {
   /** 分配映射文件服务 */
   private final AllocateMappedFileService allocateMappedFileService;
 
-  /** 信誉信息服务 */
+  /**
+   * 转发消息服务<br>
+   * 将消息转发给{@link ConsumeQueue}
+   */
   private final ReputMessageService reputMessageService;
 
   /** 医管局服务 */
@@ -296,11 +299,6 @@ public class DefaultMessageStore implements MessageStore {
     return result;
   }
 
-  /**
-   * 开始
-   *
-   * @throws Exception 例外
-   */
   public void start() throws Exception {
 
     lock = lockFile.getChannel().tryLock(0, 1, false);
@@ -2937,9 +2935,11 @@ public class DefaultMessageStore implements MessageStore {
             DefaultMessageStore.this.commitLog.getMinOffset());
         this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
       }
-
+      // ? reputFromOffset<CommitLog 的最大写入偏移量
       for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
         // 代码清单4-48
+        // ? 复制启用 并且 reputFromOffset>=确认偏移量
+        // 跳出循环
         if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
             && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
           break;
