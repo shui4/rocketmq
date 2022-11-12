@@ -240,17 +240,31 @@ public class ConsumeQueue {
    * @return 按时间获取队列中的偏移量
    */
   public long getOffsetInQueueByTime(final long timestamp) {
+    // 根据修改时间找文件（ MappedFile ）
     MappedFile mappedFile = this.mappedFileQueue.getMappedFileByTime(timestamp);
     if (mappedFile != null) {
       long offset = 0;
       // 代码清单4-34
+      /// 当前所处文件第一个条目起始偏移量
       int low =
           minLogicOffset > mappedFile.getFileFromOffset()
               ? (int) (minLogicOffset - mappedFile.getFileFromOffset())
               : 0;
+      // 当前所处文件最后一个条目的起始偏移量
       int high = 0;
-      int midOffset = -1, targetOffset = -1, leftOffset = -1, rightOffset = -1;
-      long leftIndexValue = -1L, rightIndexValue = -1L;
+      // 中间偏移量
+      int midOffset = -1,
+          /// 目标偏移量
+          targetOffset = -1,
+          // 左偏移量
+          leftOffset = -1,
+          // 右偏移量
+          rightOffset = -1;
+      // 左下标 存储时间
+      long leftIndexValue = -1L,
+          // 右下标 存储时间
+          rightIndexValue = -1L;
+      // 最小物理偏移量
       long minPhysicOffset = this.defaultMessageStore.getMinPhyOffset();
       SelectMappedBufferResult sbr = mappedFile.selectMappedBuffer(0);
       if (null != sbr) {
@@ -263,12 +277,14 @@ public class ConsumeQueue {
             byteBuffer.position(midOffset);
             long phyOffset = byteBuffer.getLong();
             int size = byteBuffer.getInt();
+            // ? 比 CommitLog 中物理最小偏移量还小
+            // 说明这个 ConsumeQueue 条目过期了
             if (phyOffset < minPhysicOffset) {
               low = midOffset + CQ_STORE_UNIT_SIZE;
               leftOffset = midOffset;
               continue;
             }
-
+            // 获取存储时间戳
             long storeTime =
                 this.defaultMessageStore.getCommitLog().pickupStoreTimestamp(phyOffset, size);
             if (storeTime < 0) {
@@ -286,18 +302,23 @@ public class ConsumeQueue {
               leftIndexValue = storeTime;
             }
           }
-
+          // * 找到了
           if (targetOffset != -1) {
 
             offset = targetOffset;
           } else {
+            // * 比要找的大
             if (leftIndexValue == -1) {
 
               offset = rightOffset;
-            } else if (rightIndexValue == -1) {
+            }
+            // * 比要找的小
+            else if (rightIndexValue == -1) {
 
               offset = leftOffset;
-            } else {
+            }
+            // * 都没满足
+            else {
               offset =
                   Math.abs(timestamp - leftIndexValue) > Math.abs(timestamp - rightIndexValue)
                       ? rightOffset

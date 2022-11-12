@@ -19,11 +19,7 @@ package org.apache.rocketmq.store;
 import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
-import org.apache.rocketmq.common.message.MessageAccessor;
-import org.apache.rocketmq.common.message.MessageConst;
-import org.apache.rocketmq.common.message.MessageDecoder;
-import org.apache.rocketmq.common.message.MessageExt;
-import org.apache.rocketmq.common.message.MessageExtBatch;
+import org.apache.rocketmq.common.message.*;
 import org.apache.rocketmq.common.sysflag.MessageSysFlag;
 import org.apache.rocketmq.common.topic.TopicValidator;
 import org.apache.rocketmq.logging.InternalLogger;
@@ -34,18 +30,9 @@ import org.apache.rocketmq.store.config.MessageStoreConfig;
 import org.apache.rocketmq.store.ha.HAService;
 import org.apache.rocketmq.store.schedule.ScheduleMessageService;
 
-import java.net.Inet4Address;
-import java.net.Inet6Address;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
+import java.net.*;
 import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -60,27 +47,21 @@ public class CommitLog {
   protected static final int BLANK_MAGIC_CODE = -875286124;
   protected final MappedFileQueue mappedFileQueue;
   protected final DefaultMessageStore defaultMessageStore;
+  protected final PutMessageLock putMessageLock;
   private final FlushCommitLogService flushCommitLogService;
-
   // If TransientStorePool enabled, we must flush message to FileChannel at fixed periods
   private final FlushCommitLogService commitLogService;
-
   private final AppendMessageCallback appendMessageCallback;
   private final ThreadLocal<PutMessageThreadLocal> putMessageThreadLocal;
+  private final MultiDispatch multiDispatch;
+  private final FlushDiskWatcher flushDiskWatcher;
   protected HashMap<String /* topic-queueid */, Long /* offset */> topicQueueTable =
       new HashMap<String, Long>(1024);
   protected Map<String /* topic-queueid */, Long /* offset */> lmqTopicQueueTable =
       new ConcurrentHashMap<>(1024);
   protected volatile long confirmOffset = -1L;
-
   private volatile long beginTimeInLock = 0;
-
-  protected final PutMessageLock putMessageLock;
-
   private volatile Set<String> fullStorePaths = Collections.emptySet();
-
-  private final MultiDispatch multiDispatch;
-  private final FlushDiskWatcher flushDiskWatcher;
 
   public CommitLog(final DefaultMessageStore defaultMessageStore) {
     String storePath = defaultMessageStore.getMessageStoreConfig().getStorePathCommitLog();
@@ -131,12 +112,12 @@ public class CommitLog {
     flushDiskWatcher = new FlushDiskWatcher();
   }
 
-  public void setFullStorePaths(Set<String> fullStorePaths) {
-    this.fullStorePaths = fullStorePaths;
-  }
-
   public Set<String> getFullStorePaths() {
     return fullStorePaths;
+  }
+
+  public void setFullStorePaths(Set<String> fullStorePaths) {
+    this.fullStorePaths = fullStorePaths;
   }
 
   public ThreadLocal<PutMessageThreadLocal> getPutMessageThreadLocal() {
@@ -308,12 +289,6 @@ public class CommitLog {
     return this.checkMessageAndReturnSize(byteBuffer, checkCRC, true);
   }
 
-  private void doNothingForDeadCode(final Object obj) {
-    if (obj != null) {
-      log.debug(String.valueOf(obj.hashCode()));
-    }
-  }
-
   /**
    * check the message and returns the message size
    *
@@ -473,6 +448,7 @@ public class CommitLog {
 
     return new DispatchRequest(-1, false /* success */);
   }
+
   // 代码清单4-6
   // 获取该消息在消息队列的物理偏移量
   protected static int calMsgLength(
@@ -502,6 +478,12 @@ public class CommitLog {
             + (propertiesLength > 0 ? propertiesLength : 0) // propertiesLength
             + 0;
     return msgLen;
+  }
+
+  private void doNothingForDeadCode(final Object obj) {
+    if (obj != null) {
+      log.debug(String.valueOf(obj.hashCode()));
+    }
   }
 
   public long getConfirmOffset() {
@@ -668,15 +650,6 @@ public class CommitLog {
 
   public long getBeginTimeInLock() {
     return beginTimeInLock;
-  }
-
-  /** 代码清单4-5 */
-  private String generateKey(StringBuilder keyBuilder, MessageExt messageExt) {
-    keyBuilder.setLength(0);
-    keyBuilder.append(messageExt.getTopic());
-    keyBuilder.append('-');
-    keyBuilder.append(messageExt.getQueueId());
-    return keyBuilder.toString();
   }
 
   public CompletableFuture<PutMessageResult> asyncPutMessage(final MessageExtBrokerInner msg) {
@@ -850,6 +823,68 @@ public class CommitLog {
         });
   }
 
+  /** 代码清单4-5 */
+  private String generateKey(StringBuilder keyBuilder, MessageExt messageExt) {
+    keyBuilder.setLength(0);
+    keyBuilder.append(messageExt.getTopic());
+    keyBuilder.append('-');
+    keyBuilder.append(messageExt.getQueueId());
+    return keyBuilder.toString();
+  }
+
+  public CompletableFuture<PutMessageStatus> submitFlushRequest(
+      AppendMessageResult result, MessageExt messageExt) {
+    // ? 同步刷新
+    if (FlushDiskType.SYNC_FLUSH
+        == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
+      final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
+      if (messageExt.isWaitStoreMsgOK()) {
+        GroupCommitRequest request =
+            new GroupCommitRequest(
+                result.getWroteOffset() + result.getWroteBytes(),
+                this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
+        flushDiskWatcher.add(request);
+        service.putRequest(request);
+        return request.future();
+      } else {
+        service.wakeup();
+        return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
+      }
+    }
+    // 异步刷新
+    else {
+      if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
+        flushCommitLogService.wakeup();
+      } else {
+        commitLogService.wakeup();
+      }
+      return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
+    }
+  }
+
+  public CompletableFuture<PutMessageStatus> submitReplicaRequest(
+      AppendMessageResult result, MessageExt messageExt) {
+    // ? 同步复制
+    if (BrokerRole.SYNC_MASTER
+        == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
+      HAService service = this.defaultMessageStore.getHaService();
+      if (messageExt.isWaitStoreMsgOK()) {
+        if (service.isSlaveOK(result.getWroteBytes() + result.getWroteOffset())) {
+          GroupCommitRequest request =
+              new GroupCommitRequest(
+                  result.getWroteOffset() + result.getWroteBytes(),
+                  this.defaultMessageStore.getMessageStoreConfig().getSlaveTimeout());
+          service.putRequest(request);
+          service.getWaitNotifyObject().wakeupAll();
+          return request.future();
+        } else {
+          return CompletableFuture.completedFuture(PutMessageStatus.SLAVE_NOT_AVAILABLE);
+        }
+      }
+    }
+    return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
+  }
+
   public CompletableFuture<PutMessageResult> asyncPutMessages(
       final MessageExtBatch messageExtBatch) {
     messageExtBatch.setStoreTimestamp(System.currentTimeMillis());
@@ -988,62 +1023,7 @@ public class CommitLog {
         });
   }
 
-  public CompletableFuture<PutMessageStatus> submitFlushRequest(
-      AppendMessageResult result, MessageExt messageExt) {
-    // ? 同步刷新
-    if (FlushDiskType.SYNC_FLUSH
-        == this.defaultMessageStore.getMessageStoreConfig().getFlushDiskType()) {
-      final GroupCommitService service = (GroupCommitService) this.flushCommitLogService;
-      if (messageExt.isWaitStoreMsgOK()) {
-        GroupCommitRequest request =
-            new GroupCommitRequest(
-                result.getWroteOffset() + result.getWroteBytes(),
-                this.defaultMessageStore.getMessageStoreConfig().getSyncFlushTimeout());
-        flushDiskWatcher.add(request);
-        service.putRequest(request);
-        return request.future();
-      } else {
-        service.wakeup();
-        return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
-      }
-    }
-    // 异步刷新
-    else {
-      if (!this.defaultMessageStore.getMessageStoreConfig().isTransientStorePoolEnable()) {
-        flushCommitLogService.wakeup();
-      } else {
-        commitLogService.wakeup();
-      }
-      return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
-    }
-  }
-
-  public CompletableFuture<PutMessageStatus> submitReplicaRequest(
-      AppendMessageResult result, MessageExt messageExt) {
-    // ? 同步复制
-    if (BrokerRole.SYNC_MASTER
-        == this.defaultMessageStore.getMessageStoreConfig().getBrokerRole()) {
-      HAService service = this.defaultMessageStore.getHaService();
-      if (messageExt.isWaitStoreMsgOK()) {
-        if (service.isSlaveOK(result.getWroteBytes() + result.getWroteOffset())) {
-          GroupCommitRequest request =
-              new GroupCommitRequest(
-                  result.getWroteOffset() + result.getWroteBytes(),
-                  this.defaultMessageStore.getMessageStoreConfig().getSlaveTimeout());
-          service.putRequest(request);
-          service.getWaitNotifyObject().wakeupAll();
-          return request.future();
-        } else {
-          return CompletableFuture.completedFuture(PutMessageStatus.SLAVE_NOT_AVAILABLE);
-        }
-      }
-    }
-    return CompletableFuture.completedFuture(PutMessageStatus.PUT_OK);
-  }
-
-  /**
-   * According to receive certain message or offset storage time if an error occurs, it returns -1
-   */
+  /** 如果发生错误，根据接收到的某个消息或偏移存储时间，返回-1 */
   public long pickupStoreTimestamp(final long offset, final int size) {
     if (offset >= this.getMinOffset()) {
       SelectMappedBufferResult result = this.getMessage(offset, size);
@@ -1176,6 +1156,332 @@ public class CommitLog {
     return this.lmqTopicQueueTable;
   }
 
+  public static class GroupCommitRequest {
+    /** 刷盘点偏移量 */
+    private final long nextOffset;
+    private final long deadLine;
+    private CompletableFuture<PutMessageStatus> flushOKFuture = new CompletableFuture<>();
+
+    public GroupCommitRequest(long nextOffset, long timeoutMillis) {
+      this.nextOffset = nextOffset;
+      this.deadLine = System.nanoTime() + (timeoutMillis * 1_000_000);
+    }
+
+    public long getDeadLine() {
+      return deadLine;
+    }
+
+    public long getNextOffset() {
+      return nextOffset;
+    }
+
+    public void wakeupCustomer(final PutMessageStatus putMessageStatus) {
+      // 完成
+      this.flushOKFuture.complete(putMessageStatus);
+    }
+
+    public CompletableFuture<PutMessageStatus> future() {
+      return flushOKFuture;
+    }
+  }
+
+  public static class MessageExtEncoder {
+    // Store the message content
+    private final ByteBuffer encoderBuffer;
+    // The maximum length of the message
+    private final int maxMessageSize;
+
+    MessageExtEncoder(final int size) {
+      this.encoderBuffer = ByteBuffer.allocateDirect(size);
+      this.maxMessageSize = size;
+    }
+
+    protected PutMessageResult encode(MessageExtBrokerInner msgInner) {
+      /** Serialize message */
+      final byte[] propertiesData =
+          msgInner.getPropertiesString() == null
+              ? null
+              : msgInner.getPropertiesString().getBytes(MessageDecoder.CHARSET_UTF8);
+
+      final int propertiesLength = propertiesData == null ? 0 : propertiesData.length;
+
+      if (propertiesLength > Short.MAX_VALUE) {
+        log.warn("putMessage message properties length too long. length={}", propertiesData.length);
+        return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
+      }
+
+      final byte[] topicData = msgInner.getTopic().getBytes(MessageDecoder.CHARSET_UTF8);
+      final int topicLength = topicData.length;
+
+      final int bodyLength = msgInner.getBody() == null ? 0 : msgInner.getBody().length;
+
+      final int msgLen =
+          calMsgLength(msgInner.getSysFlag(), bodyLength, topicLength, propertiesLength);
+      // ? 消息超过最大值
+      // Exceeds the maximum message
+      if (msgLen > this.maxMessageSize) {
+        CommitLog.log.warn(
+            "message size exceeded, msg total size: "
+                + msgLen
+                + ", msg body size: "
+                + bodyLength
+                + ", maxMessageSize: "
+                + this.maxMessageSize);
+        return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
+      }
+      // 原本它是根据配置文件中的最大值初始化的，这里会根据实际消息设置它的limit+读模式=缩小ByteBuffer的大小
+      // Initialization of storage space
+      this.resetByteBuffer(encoderBuffer, msgLen);
+      // 1 TOTALSIZE（总大小）
+      this.encoderBuffer.putInt(msgLen);
+      // 2 MAGICCODE（魔术）
+      this.encoderBuffer.putInt(CommitLog.MESSAGE_MAGIC_CODE);
+      // 3 BODYCRC（CRC）https://zhuanlan.zhihu.com/p/38411551
+      this.encoderBuffer.putInt(msgInner.getBodyCRC());
+      // 4 QUEUEID（队列ID）
+      this.encoderBuffer.putInt(msgInner.getQueueId());
+      // 5 FLAG(标志)
+      this.encoderBuffer.putInt(msgInner.getFlag());
+      // 6 QUEUEOFFSET, need update later（队列偏移量）
+      this.encoderBuffer.putLong(0);
+      // 7 PHYSICALOFFSET, need update later（物理偏移量）
+      this.encoderBuffer.putLong(0);
+      // 8 SYSFLAG（系统标志）
+      this.encoderBuffer.putInt(msgInner.getSysFlag());
+      // 9 BORNTIMESTAMP（出生（写）时间戳）
+      this.encoderBuffer.putLong(msgInner.getBornTimestamp());
+      // 10 BORNHOST（IP）
+      socketAddress2ByteBuffer(msgInner.getBornHost(), this.encoderBuffer);
+      // 11 STORETIMESTAMP（storeuijmi）
+      this.encoderBuffer.putLong(msgInner.getStoreTimestamp());
+      // 12 STOREHOSTADDRESS（？）
+      socketAddress2ByteBuffer(msgInner.getStoreHost(), this.encoderBuffer);
+      // 13 RECONSUMETIMES（重新消费时间）
+      this.encoderBuffer.putInt(msgInner.getReconsumeTimes());
+      // 14 Prepared Transaction Offset（准备事物偏移量）
+      this.encoderBuffer.putLong(msgInner.getPreparedTransactionOffset());
+      // 15 BODY（Body大小）
+      this.encoderBuffer.putInt(bodyLength);
+      if (bodyLength > 0) this.encoderBuffer.put(msgInner.getBody());
+      // 16 TOPIC（主题大小）
+      this.encoderBuffer.put((byte) topicLength);
+      // Topic内容
+      this.encoderBuffer.put(topicData);
+      // 17 PROPERTIES（属性大小）
+      this.encoderBuffer.putShort((short) propertiesLength);
+      // ? 有属性──存内容
+      if (propertiesLength > 0) this.encoderBuffer.put(propertiesData);
+      // 切换为读模式
+      encoderBuffer.flip();
+      return null;
+    }
+
+    private void resetByteBuffer(final ByteBuffer byteBuffer, final int limit) {
+      byteBuffer.flip();
+      byteBuffer.limit(limit);
+    }
+
+    private void socketAddress2ByteBuffer(
+        final SocketAddress socketAddress, final ByteBuffer byteBuffer) {
+      InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
+      InetAddress address = inetSocketAddress.getAddress();
+      if (address instanceof Inet4Address) {
+        byteBuffer.put(inetSocketAddress.getAddress().getAddress(), 0, 4);
+      } else {
+        byteBuffer.put(inetSocketAddress.getAddress().getAddress(), 0, 16);
+      }
+      byteBuffer.putInt(inetSocketAddress.getPort());
+    }
+
+    protected ByteBuffer encode(
+        final MessageExtBatch messageExtBatch, PutMessageContext putMessageContext) {
+      encoderBuffer.clear(); // not thread-safe
+      int totalMsgLen = 0;
+      ByteBuffer messagesByteBuff = messageExtBatch.wrap();
+
+      int sysFlag = messageExtBatch.getSysFlag();
+      int bornHostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;
+      int storeHostLength =
+          (sysFlag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;
+      ByteBuffer bornHostHolder = ByteBuffer.allocate(bornHostLength);
+      ByteBuffer storeHostHolder = ByteBuffer.allocate(storeHostLength);
+
+      // properties from MessageExtBatch
+      String batchPropStr =
+          MessageDecoder.messageProperties2String(messageExtBatch.getProperties());
+      final byte[] batchPropData = batchPropStr.getBytes(MessageDecoder.CHARSET_UTF8);
+      int batchPropDataLen = batchPropData.length;
+      if (batchPropDataLen > Short.MAX_VALUE) {
+        CommitLog.log.warn(
+            "Properties size of messageExtBatch exceeded, properties size: {}, maxSize: {}.",
+            batchPropDataLen,
+            Short.MAX_VALUE);
+        throw new RuntimeException("Properties size of messageExtBatch exceeded!");
+      }
+      final short batchPropLen = (short) batchPropDataLen;
+
+      int batchSize = 0;
+      while (messagesByteBuff.hasRemaining()) {
+        batchSize++;
+        // 1 TOTALSIZE
+        messagesByteBuff.getInt();
+        // 2 MAGICCODE
+        messagesByteBuff.getInt();
+        // 3 BODYCRC
+        messagesByteBuff.getInt();
+        // 4 FLAG
+        int flag = messagesByteBuff.getInt();
+        // 5 BODY
+        int bodyLen = messagesByteBuff.getInt();
+        int bodyPos = messagesByteBuff.position();
+        int bodyCrc = UtilAll.crc32(messagesByteBuff.array(), bodyPos, bodyLen);
+        messagesByteBuff.position(bodyPos + bodyLen);
+        // 6 properties
+        short propertiesLen = messagesByteBuff.getShort();
+        int propertiesPos = messagesByteBuff.position();
+        messagesByteBuff.position(propertiesPos + propertiesLen);
+        boolean needAppendLastPropertySeparator =
+            propertiesLen > 0
+                && batchPropLen > 0
+                && messagesByteBuff.get(messagesByteBuff.position() - 1)
+                    != MessageDecoder.PROPERTY_SEPARATOR;
+
+        final byte[] topicData = messageExtBatch.getTopic().getBytes(MessageDecoder.CHARSET_UTF8);
+
+        final int topicLength = topicData.length;
+
+        int totalPropLen =
+            needAppendLastPropertySeparator
+                ? propertiesLen + batchPropLen + 1
+                : propertiesLen + batchPropLen;
+        final int msgLen =
+            calMsgLength(messageExtBatch.getSysFlag(), bodyLen, topicLength, totalPropLen);
+
+        // Exceeds the maximum message
+        if (msgLen > this.maxMessageSize) {
+          CommitLog.log.warn(
+              "message size exceeded, msg total size: "
+                  + msgLen
+                  + ", msg body size: "
+                  + bodyLen
+                  + ", maxMessageSize: "
+                  + this.maxMessageSize);
+          throw new RuntimeException("message size exceeded");
+        }
+
+        totalMsgLen += msgLen;
+        // Determines whether there is sufficient free space
+        if (totalMsgLen > maxMessageSize) {
+          throw new RuntimeException("message size exceeded");
+        }
+
+        // 1 TOTALSIZE
+        this.encoderBuffer.putInt(msgLen);
+        // 2 MAGICCODE
+        this.encoderBuffer.putInt(CommitLog.MESSAGE_MAGIC_CODE);
+        // 3 BODYCRC
+        this.encoderBuffer.putInt(bodyCrc);
+        // 4 QUEUEID
+        this.encoderBuffer.putInt(messageExtBatch.getQueueId());
+        // 5 FLAG
+        this.encoderBuffer.putInt(flag);
+        // 6 QUEUEOFFSET
+        this.encoderBuffer.putLong(0);
+        // 7 PHYSICALOFFSET
+        this.encoderBuffer.putLong(0);
+        // 8 SYSFLAG
+        this.encoderBuffer.putInt(messageExtBatch.getSysFlag());
+        // 9 BORNTIMESTAMP
+        this.encoderBuffer.putLong(messageExtBatch.getBornTimestamp());
+        // 10 BORNHOST
+        this.resetByteBuffer(bornHostHolder, bornHostLength);
+        this.encoderBuffer.put(messageExtBatch.getBornHostBytes(bornHostHolder));
+        // 11 STORETIMESTAMP
+        this.encoderBuffer.putLong(messageExtBatch.getStoreTimestamp());
+        // 12 STOREHOSTADDRESS
+        this.resetByteBuffer(storeHostHolder, storeHostLength);
+        this.encoderBuffer.put(messageExtBatch.getStoreHostBytes(storeHostHolder));
+        // 13 RECONSUMETIMES
+        this.encoderBuffer.putInt(messageExtBatch.getReconsumeTimes());
+        // 14 Prepared Transaction Offset, batch does not support transaction
+        this.encoderBuffer.putLong(0);
+        // 15 BODY
+        this.encoderBuffer.putInt(bodyLen);
+        if (bodyLen > 0) this.encoderBuffer.put(messagesByteBuff.array(), bodyPos, bodyLen);
+        // 16 TOPIC
+        this.encoderBuffer.put((byte) topicLength);
+        this.encoderBuffer.put(topicData);
+        // 17 PROPERTIES
+        this.encoderBuffer.putShort((short) totalPropLen);
+        if (propertiesLen > 0) {
+          this.encoderBuffer.put(messagesByteBuff.array(), propertiesPos, propertiesLen);
+        }
+        if (batchPropLen > 0) {
+          if (needAppendLastPropertySeparator) {
+            this.encoderBuffer.put((byte) MessageDecoder.PROPERTY_SEPARATOR);
+          }
+          this.encoderBuffer.put(batchPropData, 0, batchPropLen);
+        }
+      }
+      putMessageContext.setBatchSize(batchSize);
+      putMessageContext.setPhyPos(new long[batchSize]);
+      encoderBuffer.flip();
+      return encoderBuffer;
+    }
+
+    public ByteBuffer getEncoderBuffer() {
+      return encoderBuffer;
+    }
+  }
+
+  static class PutMessageThreadLocal {
+    private MessageExtEncoder encoder;
+    private StringBuilder keyBuilder;
+
+    PutMessageThreadLocal(int size) {
+      encoder = new MessageExtEncoder(size);
+      keyBuilder = new StringBuilder();
+    }
+
+    public MessageExtEncoder getEncoder() {
+      return encoder;
+    }
+
+    public StringBuilder getKeyBuilder() {
+      return keyBuilder;
+    }
+  }
+
+  static class PutMessageContext {
+    private String topicQueueTableKey;
+    private long[] phyPos;
+    private int batchSize;
+
+    public PutMessageContext(String topicQueueTableKey) {
+      this.topicQueueTableKey = topicQueueTableKey;
+    }
+
+    public String getTopicQueueTableKey() {
+      return topicQueueTableKey;
+    }
+
+    public long[] getPhyPos() {
+      return phyPos;
+    }
+
+    public void setPhyPos(long[] phyPos) {
+      this.phyPos = phyPos;
+    }
+
+    public int getBatchSize() {
+      return batchSize;
+    }
+
+    public void setBatchSize(int batchSize) {
+      this.batchSize = batchSize;
+    }
+  }
+
   abstract class FlushCommitLogService extends ServiceThread {
     protected static final int RETRY_TIMES_OVER = 10;
   }
@@ -1183,11 +1489,6 @@ public class CommitLog {
   class CommitRealTimeService extends FlushCommitLogService {
 
     private long lastCommitTimestamp = 0;
-
-    @Override
-    public String getServiceName() {
-      return CommitRealTimeService.class.getSimpleName();
-    }
 
     @Override
     public void run() {
@@ -1243,6 +1544,11 @@ public class CommitLog {
                 + (result ? "OK" : "Not OK"));
       }
       CommitLog.log.info(this.getServiceName() + " service end");
+    }
+
+    @Override
+    public String getServiceName() {
+      return CommitRealTimeService.class.getSimpleName();
     }
   }
 
@@ -1344,46 +1650,16 @@ public class CommitLog {
     }
   }
 
-  public static class GroupCommitRequest {
-    /** 刷盘点偏移量 */
-    private final long nextOffset;
-
-    private CompletableFuture<PutMessageStatus> flushOKFuture = new CompletableFuture<>();
-    private final long deadLine;
-
-    public GroupCommitRequest(long nextOffset, long timeoutMillis) {
-      this.nextOffset = nextOffset;
-      this.deadLine = System.nanoTime() + (timeoutMillis * 1_000_000);
-    }
-
-    public long getDeadLine() {
-      return deadLine;
-    }
-
-    public long getNextOffset() {
-      return nextOffset;
-    }
-
-    public void wakeupCustomer(final PutMessageStatus putMessageStatus) {
-      // 完成
-      this.flushOKFuture.complete(putMessageStatus);
-    }
-
-    public CompletableFuture<PutMessageStatus> future() {
-      return flushOKFuture;
-    }
-  }
-
   /**
    * GroupCommit Service<br>
    * 每 10 秒毫秒定时刷盘
    */
   class GroupCommitService extends FlushCommitLogService {
+    private final PutMessageSpinLock lock = new PutMessageSpinLock();
     private volatile LinkedList<GroupCommitRequest> requestsWrite =
         new LinkedList<GroupCommitRequest>();
     private volatile LinkedList<GroupCommitRequest> requestsRead =
         new LinkedList<GroupCommitRequest>();
-    private final PutMessageSpinLock lock = new PutMessageSpinLock();
 
     public synchronized void putRequest(final GroupCommitRequest request) {
       lock.lock();
@@ -1395,15 +1671,38 @@ public class CommitLog {
       this.wakeup();
     }
 
-    private void swapRequests() {
-      lock.lock();
-      try {
-        LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
-        this.requestsWrite = this.requestsRead;
-        this.requestsRead = tmp;
-      } finally {
-        lock.unlock();
+    public void run() {
+      CommitLog.log.info(this.getServiceName() + " service started");
+
+      while (!this.isStopped()) {
+        try {
+          this.waitForRunning(10);
+          this.doCommit();
+        } catch (Exception e) {
+          CommitLog.log.warn(this.getServiceName() + " service has exception. ", e);
+        }
       }
+
+      // Under normal circumstances shutdown, wait for the arrival of the
+      // request, and then flush
+      try {
+        Thread.sleep(10);
+      } catch (InterruptedException e) {
+        CommitLog.log.warn(this.getServiceName() + " Exception, ", e);
+      }
+
+      synchronized (this) {
+        this.swapRequests();
+      }
+
+      this.doCommit();
+
+      CommitLog.log.info(this.getServiceName() + " service end");
+    }
+
+    @Override
+    public String getServiceName() {
+      return GroupCommitService.class.getSimpleName();
     }
 
     private void doCommit() {
@@ -1437,43 +1736,20 @@ public class CommitLog {
       }
     }
 
-    public void run() {
-      CommitLog.log.info(this.getServiceName() + " service started");
-
-      while (!this.isStopped()) {
-        try {
-          this.waitForRunning(10);
-          this.doCommit();
-        } catch (Exception e) {
-          CommitLog.log.warn(this.getServiceName() + " service has exception. ", e);
-        }
-      }
-
-      // Under normal circumstances shutdown, wait for the arrival of the
-      // request, and then flush
+    private void swapRequests() {
+      lock.lock();
       try {
-        Thread.sleep(10);
-      } catch (InterruptedException e) {
-        CommitLog.log.warn(this.getServiceName() + " Exception, ", e);
+        LinkedList<GroupCommitRequest> tmp = this.requestsWrite;
+        this.requestsWrite = this.requestsRead;
+        this.requestsRead = tmp;
+      } finally {
+        lock.unlock();
       }
-
-      synchronized (this) {
-        this.swapRequests();
-      }
-
-      this.doCommit();
-
-      CommitLog.log.info(this.getServiceName() + " service end");
     }
 
     @Override
     protected void onWaitEnd() {
       this.swapRequests();
-    }
-
-    @Override
-    public String getServiceName() {
-      return GroupCommitService.class.getSimpleName();
     }
 
     @Override
@@ -1744,303 +2020,6 @@ public class CommitLog {
     private void resetByteBuffer(final ByteBuffer byteBuffer, final int limit) {
       byteBuffer.flip();
       byteBuffer.limit(limit);
-    }
-  }
-
-  public static class MessageExtEncoder {
-    // Store the message content
-    private final ByteBuffer encoderBuffer;
-    // The maximum length of the message
-    private final int maxMessageSize;
-
-    MessageExtEncoder(final int size) {
-      this.encoderBuffer = ByteBuffer.allocateDirect(size);
-      this.maxMessageSize = size;
-    }
-
-    private void socketAddress2ByteBuffer(
-        final SocketAddress socketAddress, final ByteBuffer byteBuffer) {
-      InetSocketAddress inetSocketAddress = (InetSocketAddress) socketAddress;
-      InetAddress address = inetSocketAddress.getAddress();
-      if (address instanceof Inet4Address) {
-        byteBuffer.put(inetSocketAddress.getAddress().getAddress(), 0, 4);
-      } else {
-        byteBuffer.put(inetSocketAddress.getAddress().getAddress(), 0, 16);
-      }
-      byteBuffer.putInt(inetSocketAddress.getPort());
-    }
-
-    protected PutMessageResult encode(MessageExtBrokerInner msgInner) {
-      /** Serialize message */
-      final byte[] propertiesData =
-          msgInner.getPropertiesString() == null
-              ? null
-              : msgInner.getPropertiesString().getBytes(MessageDecoder.CHARSET_UTF8);
-
-      final int propertiesLength = propertiesData == null ? 0 : propertiesData.length;
-
-      if (propertiesLength > Short.MAX_VALUE) {
-        log.warn("putMessage message properties length too long. length={}", propertiesData.length);
-        return new PutMessageResult(PutMessageStatus.PROPERTIES_SIZE_EXCEEDED, null);
-      }
-
-      final byte[] topicData = msgInner.getTopic().getBytes(MessageDecoder.CHARSET_UTF8);
-      final int topicLength = topicData.length;
-
-      final int bodyLength = msgInner.getBody() == null ? 0 : msgInner.getBody().length;
-
-      final int msgLen =
-          calMsgLength(msgInner.getSysFlag(), bodyLength, topicLength, propertiesLength);
-      // ? 消息超过最大值
-      // Exceeds the maximum message
-      if (msgLen > this.maxMessageSize) {
-        CommitLog.log.warn(
-            "message size exceeded, msg total size: "
-                + msgLen
-                + ", msg body size: "
-                + bodyLength
-                + ", maxMessageSize: "
-                + this.maxMessageSize);
-        return new PutMessageResult(PutMessageStatus.MESSAGE_ILLEGAL, null);
-      }
-      // 原本它是根据配置文件中的最大值初始化的，这里会根据实际消息设置它的limit+读模式=缩小ByteBuffer的大小
-      // Initialization of storage space
-      this.resetByteBuffer(encoderBuffer, msgLen);
-      // 1 TOTALSIZE（总大小）
-      this.encoderBuffer.putInt(msgLen);
-      // 2 MAGICCODE（魔术）
-      this.encoderBuffer.putInt(CommitLog.MESSAGE_MAGIC_CODE);
-      // 3 BODYCRC（CRC）https://zhuanlan.zhihu.com/p/38411551
-      this.encoderBuffer.putInt(msgInner.getBodyCRC());
-      // 4 QUEUEID（队列ID）
-      this.encoderBuffer.putInt(msgInner.getQueueId());
-      // 5 FLAG(标志)
-      this.encoderBuffer.putInt(msgInner.getFlag());
-      // 6 QUEUEOFFSET, need update later（队列偏移量）
-      this.encoderBuffer.putLong(0);
-      // 7 PHYSICALOFFSET, need update later（物理偏移量）
-      this.encoderBuffer.putLong(0);
-      // 8 SYSFLAG（系统标志）
-      this.encoderBuffer.putInt(msgInner.getSysFlag());
-      // 9 BORNTIMESTAMP（出生（写）时间戳）
-      this.encoderBuffer.putLong(msgInner.getBornTimestamp());
-      // 10 BORNHOST（IP）
-      socketAddress2ByteBuffer(msgInner.getBornHost(), this.encoderBuffer);
-      // 11 STORETIMESTAMP（storeuijmi）
-      this.encoderBuffer.putLong(msgInner.getStoreTimestamp());
-      // 12 STOREHOSTADDRESS（？）
-      socketAddress2ByteBuffer(msgInner.getStoreHost(), this.encoderBuffer);
-      // 13 RECONSUMETIMES（重新消费时间）
-      this.encoderBuffer.putInt(msgInner.getReconsumeTimes());
-      // 14 Prepared Transaction Offset（准备事物偏移量）
-      this.encoderBuffer.putLong(msgInner.getPreparedTransactionOffset());
-      // 15 BODY（Body大小）
-      this.encoderBuffer.putInt(bodyLength);
-      if (bodyLength > 0) this.encoderBuffer.put(msgInner.getBody());
-      // 16 TOPIC（主题大小）
-      this.encoderBuffer.put((byte) topicLength);
-      // Topic内容
-      this.encoderBuffer.put(topicData);
-      // 17 PROPERTIES（属性大小）
-      this.encoderBuffer.putShort((short) propertiesLength);
-      // ? 有属性──存内容
-      if (propertiesLength > 0) this.encoderBuffer.put(propertiesData);
-      // 切换为读模式
-      encoderBuffer.flip();
-      return null;
-    }
-
-    protected ByteBuffer encode(
-        final MessageExtBatch messageExtBatch, PutMessageContext putMessageContext) {
-      encoderBuffer.clear(); // not thread-safe
-      int totalMsgLen = 0;
-      ByteBuffer messagesByteBuff = messageExtBatch.wrap();
-
-      int sysFlag = messageExtBatch.getSysFlag();
-      int bornHostLength = (sysFlag & MessageSysFlag.BORNHOST_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;
-      int storeHostLength =
-          (sysFlag & MessageSysFlag.STOREHOSTADDRESS_V6_FLAG) == 0 ? 4 + 4 : 16 + 4;
-      ByteBuffer bornHostHolder = ByteBuffer.allocate(bornHostLength);
-      ByteBuffer storeHostHolder = ByteBuffer.allocate(storeHostLength);
-
-      // properties from MessageExtBatch
-      String batchPropStr =
-          MessageDecoder.messageProperties2String(messageExtBatch.getProperties());
-      final byte[] batchPropData = batchPropStr.getBytes(MessageDecoder.CHARSET_UTF8);
-      int batchPropDataLen = batchPropData.length;
-      if (batchPropDataLen > Short.MAX_VALUE) {
-        CommitLog.log.warn(
-            "Properties size of messageExtBatch exceeded, properties size: {}, maxSize: {}.",
-            batchPropDataLen,
-            Short.MAX_VALUE);
-        throw new RuntimeException("Properties size of messageExtBatch exceeded!");
-      }
-      final short batchPropLen = (short) batchPropDataLen;
-
-      int batchSize = 0;
-      while (messagesByteBuff.hasRemaining()) {
-        batchSize++;
-        // 1 TOTALSIZE
-        messagesByteBuff.getInt();
-        // 2 MAGICCODE
-        messagesByteBuff.getInt();
-        // 3 BODYCRC
-        messagesByteBuff.getInt();
-        // 4 FLAG
-        int flag = messagesByteBuff.getInt();
-        // 5 BODY
-        int bodyLen = messagesByteBuff.getInt();
-        int bodyPos = messagesByteBuff.position();
-        int bodyCrc = UtilAll.crc32(messagesByteBuff.array(), bodyPos, bodyLen);
-        messagesByteBuff.position(bodyPos + bodyLen);
-        // 6 properties
-        short propertiesLen = messagesByteBuff.getShort();
-        int propertiesPos = messagesByteBuff.position();
-        messagesByteBuff.position(propertiesPos + propertiesLen);
-        boolean needAppendLastPropertySeparator =
-            propertiesLen > 0
-                && batchPropLen > 0
-                && messagesByteBuff.get(messagesByteBuff.position() - 1)
-                    != MessageDecoder.PROPERTY_SEPARATOR;
-
-        final byte[] topicData = messageExtBatch.getTopic().getBytes(MessageDecoder.CHARSET_UTF8);
-
-        final int topicLength = topicData.length;
-
-        int totalPropLen =
-            needAppendLastPropertySeparator
-                ? propertiesLen + batchPropLen + 1
-                : propertiesLen + batchPropLen;
-        final int msgLen =
-            calMsgLength(messageExtBatch.getSysFlag(), bodyLen, topicLength, totalPropLen);
-
-        // Exceeds the maximum message
-        if (msgLen > this.maxMessageSize) {
-          CommitLog.log.warn(
-              "message size exceeded, msg total size: "
-                  + msgLen
-                  + ", msg body size: "
-                  + bodyLen
-                  + ", maxMessageSize: "
-                  + this.maxMessageSize);
-          throw new RuntimeException("message size exceeded");
-        }
-
-        totalMsgLen += msgLen;
-        // Determines whether there is sufficient free space
-        if (totalMsgLen > maxMessageSize) {
-          throw new RuntimeException("message size exceeded");
-        }
-
-        // 1 TOTALSIZE
-        this.encoderBuffer.putInt(msgLen);
-        // 2 MAGICCODE
-        this.encoderBuffer.putInt(CommitLog.MESSAGE_MAGIC_CODE);
-        // 3 BODYCRC
-        this.encoderBuffer.putInt(bodyCrc);
-        // 4 QUEUEID
-        this.encoderBuffer.putInt(messageExtBatch.getQueueId());
-        // 5 FLAG
-        this.encoderBuffer.putInt(flag);
-        // 6 QUEUEOFFSET
-        this.encoderBuffer.putLong(0);
-        // 7 PHYSICALOFFSET
-        this.encoderBuffer.putLong(0);
-        // 8 SYSFLAG
-        this.encoderBuffer.putInt(messageExtBatch.getSysFlag());
-        // 9 BORNTIMESTAMP
-        this.encoderBuffer.putLong(messageExtBatch.getBornTimestamp());
-        // 10 BORNHOST
-        this.resetByteBuffer(bornHostHolder, bornHostLength);
-        this.encoderBuffer.put(messageExtBatch.getBornHostBytes(bornHostHolder));
-        // 11 STORETIMESTAMP
-        this.encoderBuffer.putLong(messageExtBatch.getStoreTimestamp());
-        // 12 STOREHOSTADDRESS
-        this.resetByteBuffer(storeHostHolder, storeHostLength);
-        this.encoderBuffer.put(messageExtBatch.getStoreHostBytes(storeHostHolder));
-        // 13 RECONSUMETIMES
-        this.encoderBuffer.putInt(messageExtBatch.getReconsumeTimes());
-        // 14 Prepared Transaction Offset, batch does not support transaction
-        this.encoderBuffer.putLong(0);
-        // 15 BODY
-        this.encoderBuffer.putInt(bodyLen);
-        if (bodyLen > 0) this.encoderBuffer.put(messagesByteBuff.array(), bodyPos, bodyLen);
-        // 16 TOPIC
-        this.encoderBuffer.put((byte) topicLength);
-        this.encoderBuffer.put(topicData);
-        // 17 PROPERTIES
-        this.encoderBuffer.putShort((short) totalPropLen);
-        if (propertiesLen > 0) {
-          this.encoderBuffer.put(messagesByteBuff.array(), propertiesPos, propertiesLen);
-        }
-        if (batchPropLen > 0) {
-          if (needAppendLastPropertySeparator) {
-            this.encoderBuffer.put((byte) MessageDecoder.PROPERTY_SEPARATOR);
-          }
-          this.encoderBuffer.put(batchPropData, 0, batchPropLen);
-        }
-      }
-      putMessageContext.setBatchSize(batchSize);
-      putMessageContext.setPhyPos(new long[batchSize]);
-      encoderBuffer.flip();
-      return encoderBuffer;
-    }
-
-    private void resetByteBuffer(final ByteBuffer byteBuffer, final int limit) {
-      byteBuffer.flip();
-      byteBuffer.limit(limit);
-    }
-
-    public ByteBuffer getEncoderBuffer() {
-      return encoderBuffer;
-    }
-  }
-
-  static class PutMessageThreadLocal {
-    private MessageExtEncoder encoder;
-    private StringBuilder keyBuilder;
-
-    PutMessageThreadLocal(int size) {
-      encoder = new MessageExtEncoder(size);
-      keyBuilder = new StringBuilder();
-    }
-
-    public MessageExtEncoder getEncoder() {
-      return encoder;
-    }
-
-    public StringBuilder getKeyBuilder() {
-      return keyBuilder;
-    }
-  }
-
-  static class PutMessageContext {
-    private String topicQueueTableKey;
-    private long[] phyPos;
-    private int batchSize;
-
-    public PutMessageContext(String topicQueueTableKey) {
-      this.topicQueueTableKey = topicQueueTableKey;
-    }
-
-    public String getTopicQueueTableKey() {
-      return topicQueueTableKey;
-    }
-
-    public long[] getPhyPos() {
-      return phyPos;
-    }
-
-    public void setPhyPos(long[] phyPos) {
-      this.phyPos = phyPos;
-    }
-
-    public int getBatchSize() {
-      return batchSize;
-    }
-
-    public void setBatchSize(int batchSize) {
-      this.batchSize = batchSize;
     }
   }
 }

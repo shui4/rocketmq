@@ -658,7 +658,8 @@ public class MappedFileQueue {
               && offset < targetFile.getFileFromOffset() + this.mappedFileSize) {
             return targetFile;
           }
-          // 什么情况会走这里？（不明白）
+          // 到这里 可能是 越界了，或者未找到合适的
+          // 按顺序遍历获取一个符合的
           for (MappedFile tmpMappedFile : this.mappedFiles) {
             if (offset >= tmpMappedFile.getFileFromOffset()
                 && offset < tmpMappedFile.getFileFromOffset() + this.mappedFileSize) {
