@@ -473,18 +473,22 @@ public class MappedFileQueue {
     int deleteCount = 0;
     List<MappedFile> files = new ArrayList<MappedFile>();
     if (null != mfs) {
+      // * 从倒数第二个文件开始遍历
       for (int i = 0; i < mfsLength; i++) {
         MappedFile mappedFile = (MappedFile) mfs[i];
         // 修改修改时间+72小时（默认值）
         long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
         // ? 当前时间 超过 liveMaxTimestamp
-        if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
+        if (System.currentTimeMillis() >= liveMaxTimestamp
+            ||
+            // ? 立即删除
+            cleanImmediately) {
           // ? 释放成功
+          // 加入删除文件列表中
           if (mappedFile.destroy(intervalForcibly)) {
             files.add(mappedFile);
             deleteCount++;
-            // ? 超过 10个文件
-            // 结束循环
+            // * 超过 10 个文件结束循环
             if (files.size() >= DELETE_FILES_BATCH_MAX) {
               break;
             }

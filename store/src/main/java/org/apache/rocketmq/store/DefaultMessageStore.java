@@ -553,8 +553,9 @@ public class DefaultMessageStore implements MessageStore {
     this.flushConsumeQueueService.start();
     this.commitLog.start();
     this.storeStatsService.start();
-
+    // 创建 abort 文件
     this.createTempFile();
+    // 添加定时任务
     this.addScheduleTask();
     this.shutdown = false;
   }
@@ -2409,7 +2410,7 @@ public class DefaultMessageStore implements MessageStore {
       int deletePhysicFilesInterval =
           DefaultMessageStore.this.getMessageStoreConfig().getDeleteCommitLogFilesInterval();
       // 强制销毁映射文件间隔，默认值 120_000
-      // ，如果该文件被其它线程占用（引用次数大于0，比如读取消息），此时会阻止此次删除任务，同时在第一次视图删除该文件时记录当前时间戳，
+      // 在清除过期文件时，如果该文件被其它线程占用（引用次数大于0，比如读取消息），此时会阻止此次删除任务，同时在第一次视图删除该文件时记录当前时间戳，
       // destroyMapedFileIntervalForcibly  表示
       // 第一次拒绝之后能保留文件的最大时间，在此时间内，同时可以被拒绝删除，超过该时间后，会将引用次数设置为负数，文件将被强制删除
       int destroyMapedFileIntervalForcibly =
@@ -2417,10 +2418,13 @@ public class DefaultMessageStore implements MessageStore {
       // ? 当前时间是否可以删除，看当前时间是否匹配 deleteWhen 配置，默认凌晨 4 点
       boolean timeup = this.isTimeToDelete();
       // ? 磁盘空间满了
+      // * 应该触发过期文件删除操作
       boolean spacefull = this.isSpaceToDelete();
       // 多次手动删除
       boolean manualDelete = this.manualDeleteFileSeveralTimes > 0;
-      // ? timeup 或者 spacefull 或者 manualDelete
+      // ? timeup
+      // ? spacefull
+      // ? manualDelete ：
       if (timeup || spacefull || manualDelete) {
 
         if (manualDelete) this.manualDeleteFileSeveralTimes--;
@@ -2436,7 +2440,7 @@ public class DefaultMessageStore implements MessageStore {
             spacefull,
             manualDeleteFileSeveralTimes,
             cleanAtOnce);
-
+        // 小时转毫秒
         fileReservedTime *= 60 * 60 * 1000;
 
         deleteCount =
@@ -2498,11 +2502,13 @@ public class DefaultMessageStore implements MessageStore {
      *
      * @return boolean
      */
+    @SuppressWarnings("SpellCheckingInspection")
     private boolean isSpaceToDelete() {
       // 阈值：10~95，默认为75
+      // 表示 CommitLog 文件、 ConsumeQueue 文件所在磁盘分区的最大使用量，如果超过该值，则需要立即清除过期文件
       double ratio =
           DefaultMessageStore.this.getMessageStoreConfig().getDiskMaxUsedSpaceRatio() / 100.0;
-
+      // 表示是否需要立即执行清除过期文件的操作
       cleanImmediately = false;
 
       {
@@ -2515,6 +2521,8 @@ public class DefaultMessageStore implements MessageStore {
         double minPhysicRatio = 100;
         String minStorePath = null;
         for (String storePathPhysic : storePaths) {
+          // 当前CommitLog目录所在的磁盘分区的磁盘使用率，通过File#getTotalSpace方法获取文件所在磁盘分区的总容量，
+          // 通过File#getFreeSpace方法获取文件所在磁盘分区的剩余容量
           double physicRatio = UtilAll.getDiskPartitionSpaceUsedPercent(storePathPhysic);
           if (minPhysicRatio > physicRatio) {
             // 最小阈值
@@ -2523,15 +2531,18 @@ public class DefaultMessageStore implements MessageStore {
             minStorePath = storePathPhysic;
           }
           // diskSpaceCleanForciblyRatio 默认为 0.85
-          // ? 超过改值，加入 fullStorePath（强制删除路径）
+          // ? 超过阈值（ 0.85 ），加入 fullStorePath（强制删除路径）
           if (physicRatio > diskSpaceCleanForciblyRatio) {
             fullStorePath.add(storePathPhysic);
           }
         }
         DefaultMessageStore.this.commitLog.setFullStorePaths(fullStorePath);
-        // ? 当前最小比例超过 0.95，
+        // diskSpaceWarningLevelRatio ：通过系统参数 Drocketmq.broker.diskSpaceWarningLevelRatio进行设置，默认
+        // 0.90。如果磁盘分区使用率超过该阈值，将设置磁盘为不可写，此时 会拒绝写入新消息
+        // ? 当前最小比例 > 0.95，
         // 看着打印error日志 ，并且设置立即清理字段 cleanImmediately 为 true
         if (minPhysicRatio > diskSpaceWarningLevelRatio) {
+          // 标记 拒绝写入状态
           boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskFull();
           if (diskok) {
             DefaultMessageStore.log.error(
@@ -2543,12 +2554,15 @@ public class DefaultMessageStore implements MessageStore {
 
           cleanImmediately = true;
         }
-        // ? 当前最小比例超过强制清理阈值
+        // 通过系统参数 Drocketmq.broker.diskSpaceCleanForciblyRatio 进行设置，默认 0.85
+        // 。如果磁盘分区使用超过该阈值，建议立即执行过期文件删除，
+        // 但不会拒绝写入新消息
+        // ? 当前最小比例 > 0.85
         // 设置立即清理字段 cleanImmediately 为 true
         else if (minPhysicRatio > diskSpaceCleanForciblyRatio) {
           cleanImmediately = true;
         }
-        // 看着打印
+        // N （当前最小比例 < 0.85）恢复可写状态
         else {
           boolean diskok = DefaultMessageStore.this.runningFlags.getAndMakeDiskOK();
           if (!diskok) {
@@ -2559,7 +2573,8 @@ public class DefaultMessageStore implements MessageStore {
                     + minStorePath);
           }
         }
-        // ? 当前最小比例小于 0 或者超过 0.75
+        // ? 当前最小比例小于 0 或者超过 0.75 ，参考 MessageStoreConfig#getDiskMaxUsedSpaceRatio
+        // * 打印日志 表示磁盘不足
         if (minPhysicRatio < 0 || minPhysicRatio > ratio) {
           DefaultMessageStore.log.info(
               "physic disk maybe full soon, so reclaim space, "
