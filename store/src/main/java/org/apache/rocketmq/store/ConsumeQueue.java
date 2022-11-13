@@ -203,7 +203,9 @@ public class ConsumeQueue {
             mappedFileOffset = 0;
             log.info("recover next consume queue file, " + mappedFile.getFileName());
           }
-        } else {
+        }
+        // 偏移量不符合文件大小，说明是最后一个文件，结束循环
+        else {
           log.info(
               "recover current consume queue queue over "
                   + mappedFile.getFileName()

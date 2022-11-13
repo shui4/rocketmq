@@ -227,7 +227,7 @@ public class MappedFileQueue {
       }
 
       try {
-        // 这里会将 wrotePosition 、 flushedPosition 、 committedPosition 三个指针都设 置为文件大小。
+        // 这里会将 wrotePosition 、 flushedPosition 、 committedPosition 三个指针都设置为文件大小。
         MappedFile mappedFile = new MappedFile(file.getPath(), mappedFileSize);
 
         mappedFile.setWrotePosition(this.mappedFileSize);

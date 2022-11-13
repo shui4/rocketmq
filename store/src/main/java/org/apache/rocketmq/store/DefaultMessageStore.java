@@ -287,7 +287,7 @@ public class DefaultMessageStore implements MessageStore {
             new StoreCheckpoint(
                 StorePathConfigHelper.getStoreCheckpoint(
                     this.messageStoreConfig.getStorePathRootDir()));
-
+        // 加载 Index 文件
         this.indexService.load(lastExitOK);
         // 恢复
         this.recover(lastExitOK);
@@ -295,7 +295,6 @@ public class DefaultMessageStore implements MessageStore {
         log.info("load over, and the max phy offset = {}", this.getMaxPhyOffset());
         // 代码清单4-59
         if (null != scheduleMessageService) {
-
           result = this.scheduleMessageService.load();
         }
       }
@@ -395,8 +394,9 @@ public class DefaultMessageStore implements MessageStore {
    * @param lastExitOK 最后一个出口正常
    */
   private void recover(final boolean lastExitOK) {
+    // 恢复 ConsumeQueue
     long maxPhyOffsetOfConsumeQueue = this.recoverConsumeQueue();
-    // Broker正常停止文件恢复
+    // Broker 正常停止文件恢复
     if (lastExitOK) {
       this.commitLog.recoverNormally(maxPhyOffsetOfConsumeQueue);
     } else {
