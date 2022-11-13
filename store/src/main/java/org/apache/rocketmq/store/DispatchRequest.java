@@ -36,7 +36,7 @@ public class DispatchRequest {
   private final long tagsCode;
   /** 消息存储时间戳 */
   private final long storeTimestamp;
-  /** 消息队列偏移量 */
+  /** 消费队列偏移量 */
   private final long consumeQueueOffset;
   /** 消息索引key。多个索引key用空格隔开 */
   private final String keys;

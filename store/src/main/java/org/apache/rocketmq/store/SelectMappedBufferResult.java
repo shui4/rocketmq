@@ -21,7 +21,7 @@ import java.nio.ByteBuffer;
 public class SelectMappedBufferResult {
 
     /**
-     * 起始偏移量，物理的
+     * 起始偏移量，物理的（当前文件名称+偏移量）
      */
     private final long startOffset;
 

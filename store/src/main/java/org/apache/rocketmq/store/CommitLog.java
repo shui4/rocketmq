@@ -1084,7 +1084,7 @@ public class CommitLog {
   /**
    * 代码清单4-31
    *
-   * @param offset 上一个文件（当前文件不可以）的偏移量
+   * @param offset 上一个文件的偏移量
    * @return 获取下一个文件的偏移量
    */
   public long rollNextFile(final long offset) {
