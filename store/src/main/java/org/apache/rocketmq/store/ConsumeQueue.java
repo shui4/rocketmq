@@ -367,6 +367,7 @@ public class ConsumeQueue {
             // * 删除
             if (offset >= phyOffet) {
               this.mappedFileQueue.deleteLastMappedFile();
+              // 结束内层循环，下一个文件
               break;
             }
             //
@@ -397,7 +398,8 @@ public class ConsumeQueue {
               if (isExtAddr(tagsCode)) {
                 maxExtAddr = tagsCode;
               }
-
+              // ?  文件物理偏移量到达文件大小
+              // * 结束内层循环
               if (pos == logicFileSize) {
                 return;
               }

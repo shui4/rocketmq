@@ -500,7 +500,7 @@ public class CommitLog {
    * 异常文件恢复与正常停止文件恢复的 步骤基本相同，主要差别有两个：首先，Broker正常停止默认从倒数 第三个文件开始恢复，而异常停止则需要从最后一个文件倒序推进，
    * 找到第一个消息存储正常的文件；其次，如果CommitLog目录没有消息 文件，在ConsumeQueue目录下存在的文件则需要销毁。
    *
-   * @param maxPhyOffsetOfConsumeQueue 消耗队列最大phy偏移
+   * @param maxPhyOffsetOfConsumeQueue 消费队列的最大物理偏移
    */
   @Deprecated
   public void recoverAbnormally(long maxPhyOffsetOfConsumeQueue) {
@@ -538,7 +538,7 @@ public class CommitLog {
           // Normal data
           if (size > 0) {
             mappedFileOffset += size;
-
+            // 转发到 Index 、 ConsumeQueue 文件
             if (this.defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
               if (dispatchRequest.getCommitLogOffset()
                   < this.defaultMessageStore.getConfirmOffset()) {
@@ -548,9 +548,7 @@ public class CommitLog {
               this.defaultMessageStore.doDispatch(dispatchRequest);
             }
           }
-          // Come the end of the file, switch to the next file
-          // Since the return 0 representatives met last hole, this can
-          // not be included in truncate offset
+          // 来到文件末尾，切换到下一个文件由于返回0代表遇到了最后一个 hole，这不能包含在截断偏移中
           else if (size == 0) {
             index++;
             if (index >= mappedFiles.size()) {
@@ -566,7 +564,9 @@ public class CommitLog {
               log.info("recover next physics file, " + mappedFile.getFileName());
             }
           }
-        } else {
+        }
+        // * 未找到有效文件
+        else {
           log.info(
               "recover physics file end, "
                   + mappedFile.getFileName()
@@ -579,19 +579,22 @@ public class CommitLog {
       processOffset += mappedFileOffset;
       this.mappedFileQueue.setFlushedWhere(processOffset);
       this.mappedFileQueue.setCommittedWhere(processOffset);
+      // 截断，processOffset为可靠偏移量，把它之后的截断掉
       this.mappedFileQueue.truncateDirtyFiles(processOffset);
-
-      // Clear ConsumeQueue redundant data
+      //  ? 消费队列的最大偏移量超过 commitLog 可靠偏移量（ processOffset ）
+      // * 清除 ConsumeQueue 冗余数据
       if (maxPhyOffsetOfConsumeQueue >= processOffset) {
         log.warn(
             "maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files",
             maxPhyOffsetOfConsumeQueue,
             processOffset);
+        // 截断 ConsumeQueue
         this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
       }
     }
     // Commitlog case files are deleted
-    // 如果未找到有效的MappedFile，则设置CommitLog目录的flushedWhere、committedWhere指针都为0，并销毁ConsumeQueue文件
+    // ? 未找到有效的MappedFile
+    // * 设置CommitLog目录的flushedWhere、committedWhere指针都为0，并销毁ConsumeQueue文件
     else {
       log.warn("The commitlog files are deleted, and delete the consume queue files");
       this.mappedFileQueue.setFlushedWhere(0);

@@ -16,23 +16,19 @@
  */
 package org.apache.rocketmq.store;
 
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.MappedByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Iterator;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.concurrent.CopyOnWriteArrayList;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.constant.LoggerName;
 import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.logging.InternalLoggerFactory;
 import org.apache.rocketmq.store.config.MessageStoreConfig;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.MappedByteBuffer;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * 映射文件队列，在RocketMQ中的文件存储 都是依赖于pageCache即 {@link MappedByteBuffer}，该类作为 {@link MappedFile}的成员变量。
@@ -46,14 +42,13 @@ public class MappedFileQueue {
       InternalLoggerFactory.getLogger(LoggerName.STORE_ERROR_LOGGER_NAME);
 
   private static final int DELETE_FILES_BATCH_MAX = 10;
-  /** 存储目录 */
-  private final String storePath;
   /** 单个文件的存储大小，它根据配置类{@link MessageStoreConfig#getMappedFileSizeCommitLog}设置 */
   protected final int mappedFileSize;
   /** {@link MappedFile}集合 */
   protected final CopyOnWriteArrayList<MappedFile> mappedFiles =
       new CopyOnWriteArrayList<MappedFile>();
-
+  /** 存储目录 */
+  private final String storePath;
   /** 创建MappedFile服务类 */
   private final AllocateMappedFileService allocateMappedFileService;
 
@@ -144,15 +139,16 @@ public class MappedFileQueue {
       long fileTailOffset = file.getFileFromOffset() + this.mappedFileSize;
       // ? 尾部的偏移量大于 offset ，则进一步比较 offset 与文件的开始偏移量。
       if (fileTailOffset > offset) {
-        //  ? offset 大于文件的起始偏移量，说明当前文件包含了有效偏移量，设置 MappedFile 的 flushedPosition 和 committedPosition
+        //  ? offset 大于文件的起始偏移量
+        //  * 说明当前文件包含了有效偏移量，设置 MappedFile 的 flushedPosition 和 committedPosition
         if (offset >= file.getFileFromOffset()) {
           file.setWrotePosition((int) (offset % this.mappedFileSize));
           file.setCommittedPosition((int) (offset % this.mappedFileSize));
           file.setFlushedPosition((int) (offset % this.mappedFileSize));
         }
-        //  offset 小 于文件的起始偏移量，说明该文件是有效文件后面创建的，则调用 MappedFile#destory 方法释放 MappedFile
-        // 占用的内存资源（内存映射与内存通道等），
-        //  然后加入待删除文件列表中，最终调用 deleteExpiredFile 将文件从物理磁盘上删除
+        //  * offset 小 于文件的起始偏移量，说明该文件是有效文件后面创建的
+        //  则调用 MappedFile#destory 方法释放 MappedFile 占用的内存资源（内存映射与内存通道等）， 然后加入待删除文件列表中，
+        //  最终调用 deleteExpiredFile 将文件从物理磁盘上删除
         else {
           file.destroy(1000);
           willRemoveFiles.add(file);
@@ -160,7 +156,7 @@ public class MappedFileQueue {
       }
       // 文件的尾部偏移量小于 offset 则跳过该文件
     }
-
+    // 删除过期文件
     this.deleteExpiredFile(willRemoveFiles);
   }
 
@@ -292,6 +288,24 @@ public class MappedFileQueue {
     return mappedFileLast;
   }
 
+  public MappedFile getLastMappedFile() {
+    MappedFile mappedFileLast = null;
+
+    while (!this.mappedFiles.isEmpty()) {
+      try {
+        mappedFileLast = this.mappedFiles.get(this.mappedFiles.size() - 1);
+        break;
+      } catch (IndexOutOfBoundsException e) {
+        // continue;
+      } catch (Exception e) {
+        log.error("getLastMappedFile has exception.", e);
+        break;
+      }
+    }
+
+    return mappedFileLast;
+  }
+
   /**
    * 尝试创建映射文件
    *
@@ -334,24 +348,6 @@ public class MappedFileQueue {
 
   public MappedFile getLastMappedFile(final long startOffset) {
     return getLastMappedFile(startOffset, true);
-  }
-
-  public MappedFile getLastMappedFile() {
-    MappedFile mappedFileLast = null;
-
-    while (!this.mappedFiles.isEmpty()) {
-      try {
-        mappedFileLast = this.mappedFiles.get(this.mappedFiles.size() - 1);
-        break;
-      } catch (IndexOutOfBoundsException e) {
-        // continue;
-      } catch (Exception e) {
-        log.error("getLastMappedFile has exception.", e);
-        break;
-      }
-    }
-
-    return mappedFileLast;
   }
 
   public boolean resetOffset(long offset) {
@@ -402,17 +398,10 @@ public class MappedFileQueue {
   }
 
   /**
-   * 代码清单4-14
-   *
-   * @return 得到最大偏移
+   * @return 仍然要提交（刷盘）多少数据
    */
-  public long getMaxOffset() {
-    // 最后一个文件
-    MappedFile mappedFile = getLastMappedFile();
-    if (mappedFile != null) {
-      return mappedFile.getFileFromOffset() + mappedFile.getReadPosition();
-    }
-    return 0;
+  public long remainHowManyDataToCommit() {
+    return getMaxWrotePosition() - committedWhere;
   }
 
   /**
@@ -430,19 +419,26 @@ public class MappedFileQueue {
   }
 
   /**
-   * @return 仍然要提交（刷盘）多少数据
-   */
-  public long remainHowManyDataToCommit() {
-    return getMaxWrotePosition() - committedWhere;
-  }
-
-  /**
    * 对于 pageCache 与 堆buffer 与 刷盘
    *
    * @return 剩下要刷新多少数据
    */
   public long remainHowManyDataToFlush() {
     return getMaxOffset() - flushedWhere;
+  }
+
+  /**
+   * 代码清单4-14
+   *
+   * @return 得到最大偏移
+   */
+  public long getMaxOffset() {
+    // 最后一个文件
+    MappedFile mappedFile = getLastMappedFile();
+    if (mappedFile != null) {
+      return mappedFile.getFileFromOffset() + mappedFile.getReadPosition();
+    }
+    return 0;
   }
 
   /** 删除最后一个文件 */
@@ -597,26 +593,6 @@ public class MappedFileQueue {
   }
 
   /**
-   * 提交
-   *
-   * @param commitLeastPages 提交至少页面
-   * @return boolean
-   */
-  public boolean commit(final int commitLeastPages) {
-    boolean result = true;
-    MappedFile mappedFile =
-        this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
-    if (mappedFile != null) {
-      int offset = mappedFile.commit(commitLeastPages);
-      long where = mappedFile.getFileFromOffset() + offset;
-      result = where == this.committedWhere;
-      this.committedWhere = where;
-    }
-
-    return result;
-  }
-
-  /**
    * 代码清单4-12 <br>
    * 按偏移量查找映射文件
    *
@@ -698,6 +674,26 @@ public class MappedFileQueue {
     }
 
     return mappedFileFirst;
+  }
+
+  /**
+   * 提交
+   *
+   * @param commitLeastPages 提交至少页面
+   * @return boolean
+   */
+  public boolean commit(final int commitLeastPages) {
+    boolean result = true;
+    MappedFile mappedFile =
+        this.findMappedFileByOffset(this.committedWhere, this.committedWhere == 0);
+    if (mappedFile != null) {
+      int offset = mappedFile.commit(commitLeastPages);
+      long where = mappedFile.getFileFromOffset() + offset;
+      result = where == this.committedWhere;
+      this.committedWhere = where;
+    }
+
+    return result;
   }
 
   /**

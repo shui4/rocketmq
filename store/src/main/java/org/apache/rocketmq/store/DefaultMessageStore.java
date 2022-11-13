@@ -245,7 +245,7 @@ public class DefaultMessageStore implements MessageStore {
   }
 
   /**
-   * 截断脏逻辑文件
+   * ConsumeQueue 截断脏逻辑文件
    *
    * @param phyOffset phy偏移
    */
@@ -253,7 +253,6 @@ public class DefaultMessageStore implements MessageStore {
     ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables =
         DefaultMessageStore.this.consumeQueueTable;
 
-    // 截断 ConsumeQueue
     for (ConcurrentMap<Integer, ConsumeQueue> maps : tables.values()) {
       for (ConsumeQueue logic : maps.values()) {
         logic.truncateDirtyLogicFiles(phyOffset);
