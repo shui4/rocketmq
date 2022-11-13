@@ -473,7 +473,7 @@ public class MappedFileQueue {
     int deleteCount = 0;
     List<MappedFile> files = new ArrayList<MappedFile>();
     if (null != mfs) {
-      // * 从倒数第二个文件开始遍历
+      // * 直到倒数第二个停止，（因为最后一个正在用）
       for (int i = 0; i < mfsLength; i++) {
         MappedFile mappedFile = (MappedFile) mfs[i];
         // 修改修改时间+72小时（默认值）
