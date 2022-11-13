@@ -534,16 +534,21 @@ public class CommitLog {
       ByteBuffer byteBuffer = mappedFile.sliceByteBuffer();
       long processOffset = mappedFile.getFileFromOffset();
       long mappedFileOffset = 0;
+      // * 从文件中遍历CommitLog中的消息，如果读到消息大小为0，则尝试获取下一个CommitLog文件，如果已经是最后一个则结束
       while (true) {
+        // 获取一条消息，并确认消息是否有效
         DispatchRequest dispatchRequest =
             this.checkMessageAndReturnSize(byteBuffer, checkCRCOnRecover);
         int size = dispatchRequest.getMsgSize();
-
+        // ? 消息是否有效
+        // Y 转发，循环，mappedFileOffset+=size
+        // N 结束循环
         if (dispatchRequest.isSuccess()) {
           // Normal data
+          // ? 消息大小>0
           if (size > 0) {
             mappedFileOffset += size;
-            // 转发到 Index 、 ConsumeQueue 文件
+            // 转发到 Index 、 ConsumeQueue 文件，然后进入下一次循环，读下一个消息
             if (this.defaultMessageStore.getMessageStoreConfig().isDuplicationEnable()) {
               if (dispatchRequest.getCommitLogOffset()
                   < this.defaultMessageStore.getConfirmOffset()) {
@@ -569,9 +574,7 @@ public class CommitLog {
               log.info("recover next physics file, " + mappedFile.getFileName());
             }
           }
-        }
-        // * 未找到有效文件
-        else {
+        } else {
           log.info(
               "recover physics file end, "
                   + mappedFile.getFileName()
