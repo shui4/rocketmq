@@ -253,6 +253,7 @@ public class DefaultMessageStore implements MessageStore {
     ConcurrentMap<String, ConcurrentMap<Integer, ConsumeQueue>> tables =
         DefaultMessageStore.this.consumeQueueTable;
 
+    // 截断 ConsumeQueue
     for (ConcurrentMap<Integer, ConsumeQueue> maps : tables.values()) {
       for (ConsumeQueue logic : maps.values()) {
         logic.truncateDirtyLogicFiles(phyOffset);

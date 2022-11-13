@@ -273,6 +273,7 @@ public class CommitLog {
             "maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files",
             maxPhyOffsetOfConsumeQueue,
             processOffset);
+        // 截断脏逻辑文件，在 processOffset 之后的
         this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
       }
     } else {
@@ -1159,6 +1160,7 @@ public class CommitLog {
   public static class GroupCommitRequest {
     /** 刷盘点偏移量 */
     private final long nextOffset;
+
     private final long deadLine;
     private CompletableFuture<PutMessageStatus> flushOKFuture = new CompletableFuture<>();
 

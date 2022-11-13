@@ -77,7 +77,7 @@ public class ConsumeQueue {
   private final String storePath;
   /** 映射文件大小 */
   private final int mappedFileSize;
-  /** 最大物理抵消 */
+  /** 最大物理偏移量 */
   private long maxPhysicOffset = -1;
   /** 最小逻辑偏移量 */
   private volatile long minLogicOffset = 0;
@@ -338,9 +338,9 @@ public class ConsumeQueue {
   }
 
   /**
-   * 截断脏逻辑文件
+   * 截断脏逻辑文件（如果第一个条目超过 phyOffet，直接删除，如果非第一个条目，通过指针，排除掉）
    *
-   * @param phyOffet phy offet
+   * @param phyOffet 物理偏移量
    */
   public void truncateDirtyLogicFiles(long phyOffet) {
 
@@ -361,12 +361,16 @@ public class ConsumeQueue {
           long offset = byteBuffer.getLong();
           int size = byteBuffer.getInt();
           long tagsCode = byteBuffer.getLong();
-
+          // ? 文件中第一个条目
           if (0 == i) {
+            // ? 超过 截断偏移量
+            // * 删除
             if (offset >= phyOffet) {
               this.mappedFileQueue.deleteLastMappedFile();
               break;
-            } else {
+            }
+            //
+            else {
               int pos = i + CQ_STORE_UNIT_SIZE;
               mappedFile.setWrotePosition(pos);
               mappedFile.setCommittedPosition(pos);
@@ -413,7 +417,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 得到最后抵消
+   * 得到最后偏移量
    *
    * @return long
    */
@@ -464,7 +468,7 @@ public class ConsumeQueue {
   /**
    * 删除过期文件
    *
-   * @param offset 抵消
+   * @param offset 偏移量
    * @return int
    */
   public int deleteExpiredFile(long offset) {
@@ -522,7 +526,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 分钟抵消在队列中
+   * 分钟偏移量在队列中
    *
    * @return long
    */
@@ -747,7 +751,7 @@ public class ConsumeQueue {
    * @param request 请求
    * @param maxRetries 马克斯重试
    * @param queueName 队列名称
-   * @param queueOffset 队列抵消
+   * @param queueOffset 队列偏移量
    * @param queueId 队列id
    */
   private void doDispatchLmqQueue(
@@ -816,9 +820,9 @@ public class ConsumeQueue {
   }
 
   /**
-   * 设置最小逻辑抵消
+   * 设置最小逻辑偏移量
    *
-   * @param minLogicOffset 最小值逻辑抵消
+   * @param minLogicOffset 最小值逻辑偏移量
    */
   public void setMinLogicOffset(long minLogicOffset) {
     this.minLogicOffset = minLogicOffset;
@@ -827,7 +831,7 @@ public class ConsumeQueue {
   /**
    * 获取ext
    *
-   * @param offset 抵消
+   * @param offset 偏移量
    * @return {@link ConsumeQueueExt.CqExtUnit}
    */
   public ConsumeQueueExt.CqExtUnit getExt(final long offset) {
@@ -840,7 +844,7 @@ public class ConsumeQueue {
   /**
    * 获取ext
    *
-   * @param offset 抵消
+   * @param offset 偏移量
    * @param cqExtUnit cq ext单位
    * @return boolean
    */
@@ -882,7 +886,7 @@ public class ConsumeQueue {
   }
 
   /**
-   * 得到最大物理抵消
+   * 得到最大物理偏移量
    *
    * @return long
    */
@@ -891,9 +895,9 @@ public class ConsumeQueue {
   }
 
   /**
-   * 设置最大物理抵消
+   * 设置最大物理偏移量
    *
-   * @param maxPhysicOffset 最大物理抵消
+   * @param maxPhysicOffset 最大物理偏移量
    */
   public void setMaxPhysicOffset(long maxPhysicOffset) {
     this.maxPhysicOffset = maxPhysicOffset;
