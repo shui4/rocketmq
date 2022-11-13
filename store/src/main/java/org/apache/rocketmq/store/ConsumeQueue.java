@@ -403,7 +403,9 @@ public class ConsumeQueue {
               if (pos == logicFileSize) {
                 return;
               }
-            } else {
+            }
+            // * 偏移量以及大小都 <1
+            else {
               return;
             }
           }
