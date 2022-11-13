@@ -106,6 +106,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
         }
         mqtraceContext = buildMsgContext(ctx, requestHeader);
         this.executeSendMessageHookBefore(ctx, request, mqtraceContext);
+        // ? 批量消息 MessageBatch
         if (requestHeader.isBatch()) {
           return this.asyncSendBatchMessage(ctx, request, mqtraceContext, requestHeader);
         } else {
@@ -346,10 +347,8 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
     MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
     if (origProps.containsKey(MessageConst.PROPERTY_WAIT_STORE_MSG_OK)) {
-      // There is no need to store "WAIT=true", remove it from propertiesString to save 9 bytes for
-      // each message.
-      // It works for most case. In some cases msgInner.setPropertiesString invoked later and
-      // replace it.
+      // 无需存储“WAIT=true”，将其从 propertiesString 中移除，为每条消息节省 9 个字节。
+      // 它适用于大多数情况。在某些情况下 msgInner.setPropertiesString 稍后调用并替换它。
       String waitStoreMsgOKValue = origProps.remove(MessageConst.PROPERTY_WAIT_STORE_MSG_OK);
       msgInner.setPropertiesString(
           MessageDecoder.messageProperties2String(msgInner.getProperties()));

@@ -16,10 +16,10 @@
  */
 package org.apache.rocketmq.store.config;
 
-import java.io.File;
-
 import org.apache.rocketmq.common.annotation.ImportantField;
 import org.apache.rocketmq.store.ConsumeQueue;
+
+import java.io.File;
 
 public class MessageStoreConfig {
 
@@ -51,12 +51,14 @@ public class MessageStoreConfig {
   // this will be set by pipe of calculate filter bit map.
   private int bitMapLengthConsumeQueueExt = 64;
 
-  // CommitLog flush interval
-  // flush data to disk
+  // CommitLog flush interval flush data to disk
+  /** FlushRealTimeService线程任务运行间隔时间 */
   @ImportantField private int flushIntervalCommitLog = 500;
 
-  // Only used if TransientStorePool enabled
-  // flush data to FileChannel
+  /**
+   * 提交到 FileChannel 的间隔时间。 <br>
+   * 仅在启用 TransientStorePool 时使用 将数据刷新到 FileChannel
+   */
   @ImportantField private int commitIntervalCommitLog = 200;
 
   /**
@@ -65,6 +67,10 @@ public class MessageStoreConfig {
   private boolean useReentrantLockWhenPutMessage = true;
 
   // Whether schedule flush
+  /**
+   * N 使用 await 方法等待 <br>
+   * Y 使用 Thread.sleep 方法等待
+   */
   @ImportantField private boolean flushCommitLogTimed = true;
   // ConsumeQueue flush interval
   private int flushIntervalConsumeQueue = 1000;
@@ -104,14 +110,17 @@ public class MessageStoreConfig {
   // This check adds some overhead,so it may be disabled in cases seeking extreme performance.
   private boolean checkCRCOnRecover = true;
   // How many pages are to be flushed when flush CommitLog
+  /** 一次刷盘任务至少包含页数，如果待写入数据不足，小于该参数配置的值，将忽略本次刷盘任务，默认 4 页 */
   private int flushCommitLogLeastPages = 4;
-  // How many pages are to be committed when commit data to file
+  /** 提交数据到文件时要提交多少页 */
   private int commitCommitLogLeastPages = 4;
   // Flush page size when the disk in warming state
   private int flushLeastPagesWhenWarmMapedFile = 1024 / 4 * 16;
   // How many pages are to be flushed when flush ConsumeQueue
   private int flushConsumeQueueLeastPages = 2;
+  /** 两次真实刷盘任务的最大间隔时间，默认 10 秒 */
   private int flushCommitLogThoroughInterval = 1000 * 10;
+
   private int commitCommitLogThoroughInterval = 200;
   private int flushConsumeQueueThoroughInterval = 1000 * 60;
   @ImportantField private int maxTransferBytesOnMessageInMemory = 1024 * 256;
@@ -119,10 +128,9 @@ public class MessageStoreConfig {
   @ImportantField private int maxTransferBytesOnMessageInDisk = 1024 * 64;
   @ImportantField private int maxTransferCountOnMessageInDisk = 8;
   @ImportantField private int accessMessageInMemoryMaxRatio = 40;
-  /**
-   * 消息索引启用？
-   */
+  /** 消息索引启用？ */
   @ImportantField private boolean messageIndexEnable = true;
+
   private int maxHashSlotNum = 5000000;
   private int maxIndexNum = 5000000 * 4;
   private int maxMsgsNumBatch = 64;
@@ -503,18 +511,6 @@ public class MessageStoreConfig {
     this.haHousekeepingInterval = haHousekeepingInterval;
   }
 
-  public BrokerRole getBrokerRole() {
-    return brokerRole;
-  }
-
-  public void setBrokerRole(BrokerRole brokerRole) {
-    this.brokerRole = brokerRole;
-  }
-
-  public void setBrokerRole(String brokerRole) {
-    this.brokerRole = BrokerRole.valueOf(brokerRole);
-  }
-
   public int getHaTransferBatchSize() {
     return haTransferBatchSize;
   }
@@ -529,18 +525,6 @@ public class MessageStoreConfig {
 
   public void setHaSlaveFallbehindMax(int haSlaveFallbehindMax) {
     this.haSlaveFallbehindMax = haSlaveFallbehindMax;
-  }
-
-  public FlushDiskType getFlushDiskType() {
-    return flushDiskType;
-  }
-
-  public void setFlushDiskType(FlushDiskType flushDiskType) {
-    this.flushDiskType = flushDiskType;
-  }
-
-  public void setFlushDiskType(String type) {
-    this.flushDiskType = FlushDiskType.valueOf(type);
   }
 
   public int getSyncFlushTimeout() {
@@ -649,6 +633,30 @@ public class MessageStoreConfig {
     return transientStorePoolEnable
         && FlushDiskType.ASYNC_FLUSH == getFlushDiskType()
         && BrokerRole.SLAVE != getBrokerRole();
+  }
+
+  public FlushDiskType getFlushDiskType() {
+    return flushDiskType;
+  }
+
+  public BrokerRole getBrokerRole() {
+    return brokerRole;
+  }
+
+  public void setBrokerRole(BrokerRole brokerRole) {
+    this.brokerRole = brokerRole;
+  }
+
+  public void setBrokerRole(String brokerRole) {
+    this.brokerRole = BrokerRole.valueOf(brokerRole);
+  }
+
+  public void setFlushDiskType(FlushDiskType flushDiskType) {
+    this.flushDiskType = flushDiskType;
+  }
+
+  public void setFlushDiskType(String type) {
+    this.flushDiskType = FlushDiskType.valueOf(type);
   }
 
   public void setTransientStorePoolEnable(final boolean transientStorePoolEnable) {

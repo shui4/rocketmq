@@ -846,6 +846,7 @@ public class DefaultMessageStore implements MessageStore {
 
     putResultFuture.thenAccept(
         (result) -> {
+          // 经过时间
           long elapsedTime = this.getSystemClock().now() - beginTime;
           if (elapsedTime > 500) {
             log.warn(

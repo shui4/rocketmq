@@ -205,7 +205,7 @@ public abstract class AbstractSendMessageProcessor extends AsyncNettyRequestProc
     if (TopicValidator.isNotAllowedSendTopic(requestHeader.getTopic(), response)) {
       return response;
     }
-    // 在NameSServer端存在主题的配置信息，默认路径为${ROCKET_HOME}/store/config/topic.json
+    // 在NameServer端存在主题的配置信息，默认路径为${ROCKET_HOME}/store/config/topic.json
     TopicConfig topicConfig =
         this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
     if (null == topicConfig) {
