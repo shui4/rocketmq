@@ -266,8 +266,8 @@ public class CommitLog {
       this.mappedFileQueue.setFlushedWhere(processOffset);
       this.mappedFileQueue.setCommittedWhere(processOffset);
       this.mappedFileQueue.truncateDirtyFiles(processOffset);
-
-      // Clear ConsumeQueue redundant data
+      // ? ConsumeQueue 中条目中所说的CommitLog最大偏移量比实际最大偏移量（processOffset）还大
+      // * 清除 ConsumeQueue 冗余数据
       if (maxPhyOffsetOfConsumeQueue >= processOffset) {
         log.warn(
             "maxPhyOffsetOfConsumeQueue({}) >= processOffset({}), truncate dirty logic files",
@@ -276,11 +276,14 @@ public class CommitLog {
         // 截断脏逻辑文件，在 processOffset 之后的
         this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
       }
-    } else {
+    }
+    // * 没有CommitLog文件
+    else {
       // Commitlog case files are deleted
       log.warn("The commitlog files are deleted, and delete the consume queue files");
       this.mappedFileQueue.setFlushedWhere(0);
       this.mappedFileQueue.setCommittedWhere(0);
+      // 清理 ConsumeQueue表，以及其中的所有脏文件
       this.defaultMessageStore.destroyLogics();
     }
   }
@@ -509,18 +512,20 @@ public class CommitLog {
         this.defaultMessageStore.getMessageStoreConfig().isCheckCRCOnRecover();
     final List<MappedFile> mappedFiles = this.mappedFileQueue.getMappedFiles();
     if (!mappedFiles.isEmpty()) {
-      // Looking beginning to recover from which file
       int index = mappedFiles.size() - 1;
       MappedFile mappedFile = null;
+      // * 遍历 mappedFileQueue 中的 映射文件
+      // 寻找开始从哪个文件中恢复，到倒数第一个循环，直到找到可靠的
       for (; index >= 0; index--) {
         mappedFile = mappedFiles.get(index);
         // ? 消息文件是否正常
+        // Y 结束循环
         if (this.isMappedFileMatchedRecover(mappedFile)) {
           log.info("recover from this mapped file " + mappedFile.getFileName());
           break;
         }
       }
-
+      // ? index 小于 0
       if (index < 0) {
         index = 0;
         mappedFile = mappedFiles.get(index);
@@ -592,8 +597,8 @@ public class CommitLog {
         this.defaultMessageStore.truncateDirtyLogicFiles(processOffset);
       }
     }
-    // Commitlog case files are deleted
     // ? 未找到有效的MappedFile
+    // Commitlog case files are deleted
     // * 设置CommitLog目录的flushedWhere、committedWhere指针都为0，并销毁ConsumeQueue文件
     else {
       log.warn("The commitlog files are deleted, and delete the consume queue files");
@@ -620,12 +625,14 @@ public class CommitLog {
     if (0 == storeTimestamp) {
       return false;
     }
-    // checkpoint 文件中保存了 CommitLog 、 ConsumeQueue 、 Index 的文件刷盘点， RocketMQ 默认选择 CommitLog 文
-    // 件与 ConsumeQueue 这两个文件的刷盘点中较小值与 CommitLog 文件第一
-    // 条消息的时间戳做对比，如果 messageIndexEnable 为 true ，表示 Index 文件的刷盘时间点也参与计算对比文件第一条消息的时间戳与检测点
+    // checkpoint 文件中保存了 CommitLog 、 ConsumeQueue 、 Index 的文件刷盘点， RocketMQ 默认选择 CommitLog 文 件与
+    // ConsumeQueue 这两个文件的刷盘点中较小值与 CommitLog 文件第一
+    // 条消息的时间戳做对比，
+    // ?  如果 messageIndexEnable 为 true ，表示 Index 文件的刷盘时间点也参与计算对比文件第一条消息的时间戳与检测点
     if (this.defaultMessageStore.getMessageStoreConfig().isMessageIndexEnable()
         && this.defaultMessageStore.getMessageStoreConfig().isMessageIndexSafe()) {
-      // ? 文件第一条消息的时间戳小于文件检测点：说明该文件的部分消息是可靠的，则从该文件开始恢复
+      // ? 文件第一条消息的时间戳小于文件检测点
+      // Y 说明该文件的部分消息是可靠的，则从该文件开始恢复
       if (storeTimestamp <= this.defaultMessageStore.getStoreCheckpoint().getMinTimestampIndex()) {
         log.info(
             "find check timestamp, {} {}",

@@ -770,7 +770,7 @@ public class DefaultMessageStore implements MessageStore {
         StorePathConfigHelper.getStoreCheckpoint(this.messageStoreConfig.getStorePathRootDir()));
   }
 
-  /** 销毁逻辑 */
+  /** 销毁 ConsumeQueue表 */
   public void destroyLogics() {
     for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
       for (ConsumeQueue logic : maps.values()) {
