@@ -119,6 +119,9 @@ public class MessageStoreConfig {
   @ImportantField private int maxTransferBytesOnMessageInDisk = 1024 * 64;
   @ImportantField private int maxTransferCountOnMessageInDisk = 8;
   @ImportantField private int accessMessageInMemoryMaxRatio = 40;
+  /**
+   * 消息索引启用？
+   */
   @ImportantField private boolean messageIndexEnable = true;
   private int maxHashSlotNum = 5000000;
   private int maxIndexNum = 5000000 * 4;

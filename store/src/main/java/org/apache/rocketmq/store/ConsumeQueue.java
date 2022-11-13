@@ -532,7 +532,7 @@ public class ConsumeQueue {
    * 放置消息位置信息包装器
    *
    * @param request 请求
-   * @param multiQueue 多队列
+   * @param multiQueue 多队列？
    */
   public void putMessagePositionInfoWrapper(DispatchRequest request, boolean multiQueue) {
     final int maxRetries = 30;

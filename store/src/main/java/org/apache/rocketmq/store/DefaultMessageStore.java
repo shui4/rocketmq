@@ -2346,6 +2346,7 @@ public class DefaultMessageStore implements MessageStore {
      */
     @Override
     public void dispatch(DispatchRequest request) {
+      // ? 消息索引启动
       if (DefaultMessageStore.this.messageStoreConfig.isMessageIndexEnable()) {
         DefaultMessageStore.this.indexService.buildIndex(request);
       }
