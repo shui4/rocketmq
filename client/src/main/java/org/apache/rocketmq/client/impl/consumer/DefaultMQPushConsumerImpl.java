@@ -642,40 +642,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
   }
 
   @Override
-  public Set<SubscriptionData> subscriptions() {
-    Set<SubscriptionData> subSet = new HashSet<SubscriptionData>();
-
-    subSet.addAll(this.rebalanceImpl.getSubscriptionInner().values());
-
-    return subSet;
-  }
-
-  @Override
-  public void doRebalance() {
-    if (!this.pause) {
-      this.rebalanceImpl.doRebalance(this.isConsumeOrderly());
-    }
-  }
-
-  @Override
-  public void persistConsumerOffset() {
-    try {
-      this.makeSureStateOK();
-      Set<MessageQueue> mqs = new HashSet<MessageQueue>();
-      Set<MessageQueue> allocateMq = this.rebalanceImpl.getProcessQueueTable().keySet();
-      mqs.addAll(allocateMq);
-
-      this.offsetStore.persistAll(mqs);
-    } catch (Exception e) {
-      log.error(
-          "group: "
-              + this.defaultMQPushConsumer.getConsumerGroup()
-              + " persistConsumerOffset exception",
-          e);
-    }
-  }
-
-  @Override
   public void updateTopicSubscribeInfo(String topic, Set<MessageQueue> info) {
     Map<String, SubscriptionData> subTable = this.getSubscriptionInner();
     if (subTable != null) {
@@ -683,6 +649,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.rebalanceImpl.topicSubscribeInfoTable.put(topic, info);
       }
     }
+  }
+
+  public ConcurrentMap<String, SubscriptionData> getSubscriptionInner() {
+    return this.rebalanceImpl.getSubscriptionInner();
   }
 
   @Override
@@ -695,11 +665,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
 
     return false;
-  }
-
-  @Override
-  public boolean isUnitMode() {
-    return this.defaultMQPushConsumer.isUnitMode();
   }
 
   @Override
@@ -746,8 +711,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     return info;
   }
 
-  public ConcurrentMap<String, SubscriptionData> getSubscriptionInner() {
-    return this.rebalanceImpl.getSubscriptionInner();
+  @Override
+  public Set<SubscriptionData> subscriptions() {
+    Set<SubscriptionData> subSet = new HashSet<SubscriptionData>();
+
+    subSet.addAll(this.rebalanceImpl.getSubscriptionInner().values());
+
+    return subSet;
   }
 
   public QueryResult queryMessage(String topic, String key, int maxNum, long begin, long end)
@@ -813,6 +783,13 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     this.pause = false;
     doRebalance();
     log.info("resume this consumer, {}", this.defaultMQPushConsumer.getConsumerGroup());
+  }
+
+  @Override
+  public void doRebalance() {
+    if (!this.pause) {
+      this.rebalanceImpl.doRebalance(this.isConsumeOrderly());
+    }
   }
 
   public boolean isConsumeOrderly() {
@@ -903,6 +880,24 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
   }
 
+  @Override
+  public void persistConsumerOffset() {
+    try {
+      this.makeSureStateOK();
+      Set<MessageQueue> mqs = new HashSet<MessageQueue>();
+      Set<MessageQueue> allocateMq = this.rebalanceImpl.getProcessQueueTable().keySet();
+      mqs.addAll(allocateMq);
+
+      this.offsetStore.persistAll(mqs);
+    } catch (Exception e) {
+      log.error(
+          "group: "
+              + this.defaultMQPushConsumer.getConsumerGroup()
+              + " persistConsumerOffset exception",
+          e);
+    }
+  }
+
   public synchronized void start() throws MQClientException {
     switch (this.serviceState) {
       case CREATE_JUST:
@@ -914,7 +909,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         this.serviceState = ServiceState.START_FAILED;
 
         this.checkConfig();
-
+        // 复制订阅
         this.copySubscription();
 
         if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {
@@ -938,18 +933,20 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
         this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
-        // region 确认OffsetStore
+        // region 初始化OffsetStore（消息进度）
         if (this.defaultMQPushConsumer.getOffsetStore() != null) {
           this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
         } else {
           // 根据不同的消费方式，OffSetStore存在不同的类型
           switch (this.defaultMQPushConsumer.getMessageModel()) {
+              // 广播
             case BROADCASTING:
-              // Offset存到本地
+              // Offset存到本地（消费者端）
               this.offsetStore =
                   new LocalFileOffsetStore(
                       this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
               break;
+              // 集群
             case CLUSTERING:
               // Offset存在Broker机器上
               this.offsetStore =
@@ -965,12 +962,15 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         // endregion
 
         // region 初始化 consumeMessageService，并启动
+        // ? 顺序消费
         if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
           this.consumeOrderly = true;
           this.consumeMessageService =
               new ConsumeMessageOrderlyService(
                   this, (MessageListenerOrderly) this.getMessageListenerInner());
-        } else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
+        }
+        // ? 并发消费
+        else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
           this.consumeOrderly = false;
           this.consumeMessageService =
               new ConsumeMessageConcurrentlyService(
@@ -978,9 +978,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
         this.consumeMessageService.start();
         // endregion
-
+        // 向 MQClientInstance 注册消费者并启动 MQClientInstance ， JVM 中的所有消费者、生产者持有同一个 MQClientInstance ，
+        // MQClientInstance 只会启动一次
         boolean registerOK =
             mQClientFactory.registerConsumer(this.defaultMQPushConsumer.getConsumerGroup(), this);
+        // ? 注册失败，重复注册、未设置 group 造成失败
         if (!registerOK) {
           this.serviceState = ServiceState.CREATE_JUST;
           this.consumeMessageService.shutdown(
@@ -992,6 +994,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                   + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
               null);
         }
+        // 启动 MQClientInstance
         mQClientFactory.start();
         log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
         this.serviceState = ServiceState.RUNNING;
@@ -1198,7 +1201,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         for (final Map.Entry<String, String> entry : sub.entrySet()) {
           final String topic = entry.getKey();
           final String subString = entry.getValue();
+          // 构建主题订阅信息SubscriptionData
           SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(topic, subString);
+          // 加入 RebalanceImpl的订阅消息中
           this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
         }
       }
@@ -1211,6 +1216,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         case BROADCASTING:
           break;
         case CLUSTERING:
+          // 消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY%+ 消费组名。消费者在启动时会自动订阅该主题，参与该主题的消息队列负载
           final String retryTopic =
               MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup());
           SubscriptionData subscriptionData =
@@ -1223,6 +1229,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     } catch (Exception e) {
       throw new MQClientException("subscription exception", e);
     }
+  }
+
+  @Override
+  public boolean isUnitMode() {
+    return this.defaultMQPushConsumer.isUnitMode();
   }
 
   public MessageListener getMessageListenerInner() {
