@@ -901,104 +901,106 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
   public synchronized void start() throws MQClientException {
     switch (this.serviceState) {
       case CREATE_JUST:
-        log.info(
-            "the consumer [{}] start beginning. messageModel={}, isUnitMode={}",
-            this.defaultMQPushConsumer.getConsumerGroup(),
-            this.defaultMQPushConsumer.getMessageModel(),
-            this.defaultMQPushConsumer.isUnitMode());
-        this.serviceState = ServiceState.START_FAILED;
+        {
+          log.info(
+              "the consumer [{}] start beginning. messageModel={}, isUnitMode={}",
+              this.defaultMQPushConsumer.getConsumerGroup(),
+              this.defaultMQPushConsumer.getMessageModel(),
+              this.defaultMQPushConsumer.isUnitMode());
+          this.serviceState = ServiceState.START_FAILED;
 
-        this.checkConfig();
-        // 复制订阅
-        this.copySubscription();
+          this.checkConfig();
+          // 复制订阅
+          this.copySubscription();
 
-        if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {
-          this.defaultMQPushConsumer.changeInstanceNameToPID();
-        }
-
-        this.mQClientFactory =
-            MQClientManager.getInstance()
-                .getOrCreateMQClientInstance(this.defaultMQPushConsumer, this.rpcHook);
-
-        // region 设置reBalance策略
-        this.rebalanceImpl.setConsumerGroup(this.defaultMQPushConsumer.getConsumerGroup());
-        this.rebalanceImpl.setMessageModel(this.defaultMQPushConsumer.getMessageModel());
-        this.rebalanceImpl.setAllocateMessageQueueStrategy(
-            this.defaultMQPushConsumer.getAllocateMessageQueueStrategy());
-        this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
-        // endregion
-
-        this.pullAPIWrapper =
-            new PullAPIWrapper(
-                mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
-        this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
-
-        // region 初始化OffsetStore（消息进度）
-        if (this.defaultMQPushConsumer.getOffsetStore() != null) {
-          this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
-        } else {
-          // 根据不同的消费方式，OffSetStore存在不同的类型
-          switch (this.defaultMQPushConsumer.getMessageModel()) {
-              // 广播
-            case BROADCASTING:
-              // Offset存到本地（消费者端）
-              this.offsetStore =
-                  new LocalFileOffsetStore(
-                      this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
-              break;
-              // 集群
-            case CLUSTERING:
-              // Offset存在Broker机器上
-              this.offsetStore =
-                  new RemoteBrokerOffsetStore(
-                      this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
-              break;
-            default:
-              break;
+          if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {
+            this.defaultMQPushConsumer.changeInstanceNameToPID();
           }
-          this.defaultMQPushConsumer.setOffsetStore(this.offsetStore);
-        }
-        this.offsetStore.load();
-        // endregion
 
-        // region 初始化 consumeMessageService，并启动
-        // ? 顺序消费
-        if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
-          this.consumeOrderly = true;
-          this.consumeMessageService =
-              new ConsumeMessageOrderlyService(
-                  this, (MessageListenerOrderly) this.getMessageListenerInner());
+          this.mQClientFactory =
+              MQClientManager.getInstance()
+                  .getOrCreateMQClientInstance(this.defaultMQPushConsumer, this.rpcHook);
+
+          // region 设置reBalance策略
+          this.rebalanceImpl.setConsumerGroup(this.defaultMQPushConsumer.getConsumerGroup());
+          this.rebalanceImpl.setMessageModel(this.defaultMQPushConsumer.getMessageModel());
+          this.rebalanceImpl.setAllocateMessageQueueStrategy(
+              this.defaultMQPushConsumer.getAllocateMessageQueueStrategy());
+          this.rebalanceImpl.setmQClientFactory(this.mQClientFactory);
+          // endregion
+
+          this.pullAPIWrapper =
+              new PullAPIWrapper(
+                  mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup(), isUnitMode());
+          this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
+
+          // region 初始化OffsetStore（消息进度）
+          if (this.defaultMQPushConsumer.getOffsetStore() != null) {
+            this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
+          } else {
+            // 根据不同的消费方式，OffSetStore存在不同的类型
+            switch (this.defaultMQPushConsumer.getMessageModel()) {
+                // 广播
+              case BROADCASTING:
+                // Offset存到本地（消费者端）
+                this.offsetStore =
+                    new LocalFileOffsetStore(
+                        this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
+                break;
+                // 集群
+              case CLUSTERING:
+                // Offset存在Broker机器上
+                this.offsetStore =
+                    new RemoteBrokerOffsetStore(
+                        this.mQClientFactory, this.defaultMQPushConsumer.getConsumerGroup());
+                break;
+              default:
+                break;
+            }
+            this.defaultMQPushConsumer.setOffsetStore(this.offsetStore);
+          }
+          this.offsetStore.load();
+          // endregion
+
+          // region 初始化 consumeMessageService，并启动
+          // ? 顺序消费
+          if (this.getMessageListenerInner() instanceof MessageListenerOrderly) {
+            this.consumeOrderly = true;
+            this.consumeMessageService =
+                new ConsumeMessageOrderlyService(
+                    this, (MessageListenerOrderly) this.getMessageListenerInner());
+          }
+          // ? 并发消费
+          else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
+            this.consumeOrderly = false;
+            this.consumeMessageService =
+                new ConsumeMessageConcurrentlyService(
+                    this, (MessageListenerConcurrently) this.getMessageListenerInner());
+          }
+          this.consumeMessageService.start();
+          // endregion
+          // 向 MQClientInstance 注册消费者并启动 MQClientInstance ， JVM 中的所有消费者、生产者持有同一个 MQClientInstance ，
+          // MQClientInstance 只会启动一次
+          boolean registerOK =
+              mQClientFactory.registerConsumer(this.defaultMQPushConsumer.getConsumerGroup(), this);
+          // ? 注册失败，重复注册、未设置 group 造成失败
+          if (!registerOK) {
+            this.serviceState = ServiceState.CREATE_JUST;
+            this.consumeMessageService.shutdown(
+                defaultMQPushConsumer.getAwaitTerminationMillisWhenShutdown());
+            throw new MQClientException(
+                "The consumer group["
+                    + this.defaultMQPushConsumer.getConsumerGroup()
+                    + "] has been created before, specify another name please."
+                    + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
+                null);
+          }
+          // 启动 MQClientInstance
+          mQClientFactory.start();
+          log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
+          this.serviceState = ServiceState.RUNNING;
+          break;
         }
-        // ? 并发消费
-        else if (this.getMessageListenerInner() instanceof MessageListenerConcurrently) {
-          this.consumeOrderly = false;
-          this.consumeMessageService =
-              new ConsumeMessageConcurrentlyService(
-                  this, (MessageListenerConcurrently) this.getMessageListenerInner());
-        }
-        this.consumeMessageService.start();
-        // endregion
-        // 向 MQClientInstance 注册消费者并启动 MQClientInstance ， JVM 中的所有消费者、生产者持有同一个 MQClientInstance ，
-        // MQClientInstance 只会启动一次
-        boolean registerOK =
-            mQClientFactory.registerConsumer(this.defaultMQPushConsumer.getConsumerGroup(), this);
-        // ? 注册失败，重复注册、未设置 group 造成失败
-        if (!registerOK) {
-          this.serviceState = ServiceState.CREATE_JUST;
-          this.consumeMessageService.shutdown(
-              defaultMQPushConsumer.getAwaitTerminationMillisWhenShutdown());
-          throw new MQClientException(
-              "The consumer group["
-                  + this.defaultMQPushConsumer.getConsumerGroup()
-                  + "] has been created before, specify another name please."
-                  + FAQUrl.suggestTodo(FAQUrl.GROUP_NAME_DUPLICATE_URL),
-              null);
-        }
-        // 启动 MQClientInstance
-        mQClientFactory.start();
-        log.info("the consumer [{}] start OK.", this.defaultMQPushConsumer.getConsumerGroup());
-        this.serviceState = ServiceState.RUNNING;
-        break;
       case RUNNING:
       case START_FAILED:
       case SHUTDOWN_ALREADY:
