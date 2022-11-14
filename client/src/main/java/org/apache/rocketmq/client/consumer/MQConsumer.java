@@ -16,7 +16,6 @@
  */
 package org.apache.rocketmq.client.consumer;
 
-import java.util.Set;
 import org.apache.rocketmq.client.MQAdmin;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
@@ -24,28 +23,34 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
-/**
- * Message queue consumer interface
- */
+import java.util.Set;
+
+/** Message queue consumer interface */
 public interface MQConsumer extends MQAdmin {
-    /**
-     * If consuming failure,message will be send back to the brokers,and delay consuming some time
-     */
-    @Deprecated
-    void sendMessageBack(final MessageExt msg, final int delayLevel) throws RemotingException,
-        MQBrokerException, InterruptedException, MQClientException;
+  /**
+   * 如果消费失败，消息将被发送回broker服务，并延迟消费一些时间
+   *
+   * @param msg 消息
+   * @param delayLevel 消息延迟级别
+   */
+  @Deprecated
+  void sendMessageBack(final MessageExt msg, final int delayLevel)
+      throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
+  /**
+   * 如果消费失败，消息将被发送回broker服务，并延迟消费一些时间
+   *
+   * @param msg 消息
+   * @param delayLevel 消息延迟级别
+   * @param brokerName 消息服务名称
+   */
+  void sendMessageBack(final MessageExt msg, final int delayLevel, final String brokerName)
+      throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
 
-    /**
-     * If consuming failure,message will be send back to the broker,and delay consuming some time
-     */
-    void sendMessageBack(final MessageExt msg, final int delayLevel, final String brokerName)
-        throws RemotingException, MQBrokerException, InterruptedException, MQClientException;
-
-    /**
-     * Fetch message queues from consumer cache according to the topic
-     *
-     * @param topic message topic
-     * @return queue set
-     */
-    Set<MessageQueue> fetchSubscribeMessageQueues(final String topic) throws MQClientException;
+  /**
+   * 根据主题从消费者缓存中获取消息队列
+   *
+   * @param topic 主题名称
+   * @return queue set
+   */
+  Set<MessageQueue> fetchSubscribeMessageQueues(final String topic) throws MQClientException;
 }
