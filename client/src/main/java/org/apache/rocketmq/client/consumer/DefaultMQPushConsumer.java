@@ -46,15 +46,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-
 /**
- * In most scenarios, this is the mostly recommended class to consume messages. Technically
- * speaking, this push client is virtually a wrapper of the underlying pull service. Specifically,
- * on arrival of messages pulled from brokers, it roughly invokes the registered callback handler to
- * feed the messages. See quickstart/Consumer in the example module for a typical usage.
- *
- * <p><strong>Thread Safety:</strong> After initialization, the instance can be regarded as
- * thread-safe.
+ * 在大多数情况下，这是最推荐使用消息的类。从技术上讲，这个推送客户端实际上是底层拉取服务的包装器。具体来说，当从代理中提取的消息到达时，它粗略地调用注册的回调处理程序来提供消息。有关典型用法，请参阅示例模块中的
+ * quickstart/Consumer。 <br>
+ * <strong>线程安全：</strong>初始化后，实例可以被认为是线程安全的。
  */
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
