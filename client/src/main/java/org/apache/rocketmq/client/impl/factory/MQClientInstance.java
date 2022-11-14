@@ -571,7 +571,7 @@ public class MQClientInstance {
           this.mQClientAPIImpl.start();
           // 启动各种计划任务
           this.startScheduledTask();
-          // 启动拉取服务
+          // 启动拉取服务线程
           // 实现类：PullMessageService
           this.pullMessageService.start();
           // 启动再平衡服务

@@ -900,6 +900,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
   public synchronized void start() throws MQClientException {
     switch (this.serviceState) {
+        // 服务刚刚创建，未启动
       case CREATE_JUST:
         {
           log.info(
@@ -1001,8 +1002,11 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
           this.serviceState = ServiceState.RUNNING;
           break;
         }
+        // 运行中
       case RUNNING:
+        // 服务启动失败
       case START_FAILED:
+        // 服务关闭
       case SHUTDOWN_ALREADY:
         throw new MQClientException(
             "The PushConsumer service state not OK, maybe started once, "
