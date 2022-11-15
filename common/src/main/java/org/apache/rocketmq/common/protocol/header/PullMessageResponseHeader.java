@@ -15,58 +15,62 @@
  * limitations under the License.
  */
 
-/**
- * $Id: PullMessageResponseHeader.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $
- */
+/** $Id: PullMessageResponseHeader.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $ */
 package org.apache.rocketmq.common.protocol.header;
 
 import org.apache.rocketmq.remoting.CommandCustomHeader;
 import org.apache.rocketmq.remoting.annotation.CFNotNull;
 import org.apache.rocketmq.remoting.exception.RemotingCommandException;
 
+/** 拉取消息响应头 */
 public class PullMessageResponseHeader implements CommandCustomHeader {
-    @CFNotNull
-    private Long suggestWhichBrokerId;
-    @CFNotNull
-    private Long nextBeginOffset;
-    @CFNotNull
-    private Long minOffset;
-    @CFNotNull
-    private Long maxOffset;
+  /** 下一次拉取任务的BrokerId */
+  @CFNotNull private Long suggestWhichBrokerId;
 
-    @Override
-    public void checkFields() throws RemotingCommandException {
-    }
+  /** 待查找队列的偏移量 */
+  @CFNotNull private Long nextBeginOffset;
+  /** 当前消息队列的最小偏移量 */
+  @CFNotNull private Long minOffset;
+  /** 当前CommitLog文件的最大偏移量 */
+  @CFNotNull private Long maxOffset;
 
-    public Long getNextBeginOffset() {
-        return nextBeginOffset;
-    }
+  /**
+   * 检查字段
+   *
+   * @throws RemotingCommandException 远程命令异常
+   */
+  @Override
+  public void checkFields() throws RemotingCommandException {}
 
-    public void setNextBeginOffset(Long nextBeginOffset) {
-        this.nextBeginOffset = nextBeginOffset;
-    }
+  public Long getNextBeginOffset() {
+    return nextBeginOffset;
+  }
 
-    public Long getMinOffset() {
-        return minOffset;
-    }
+  public void setNextBeginOffset(Long nextBeginOffset) {
+    this.nextBeginOffset = nextBeginOffset;
+  }
 
-    public void setMinOffset(Long minOffset) {
-        this.minOffset = minOffset;
-    }
+  public Long getMinOffset() {
+    return minOffset;
+  }
 
-    public Long getMaxOffset() {
-        return maxOffset;
-    }
+  public void setMinOffset(Long minOffset) {
+    this.minOffset = minOffset;
+  }
 
-    public void setMaxOffset(Long maxOffset) {
-        this.maxOffset = maxOffset;
-    }
+  public Long getMaxOffset() {
+    return maxOffset;
+  }
 
-    public Long getSuggestWhichBrokerId() {
-        return suggestWhichBrokerId;
-    }
+  public void setMaxOffset(Long maxOffset) {
+    this.maxOffset = maxOffset;
+  }
 
-    public void setSuggestWhichBrokerId(Long suggestWhichBrokerId) {
-        this.suggestWhichBrokerId = suggestWhichBrokerId;
-    }
+  public Long getSuggestWhichBrokerId() {
+    return suggestWhichBrokerId;
+  }
+
+  public void setSuggestWhichBrokerId(Long suggestWhichBrokerId) {
+    this.suggestWhichBrokerId = suggestWhichBrokerId;
+  }
 }

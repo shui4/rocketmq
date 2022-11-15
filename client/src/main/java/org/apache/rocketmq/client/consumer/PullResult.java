@@ -16,54 +16,72 @@
  */
 package org.apache.rocketmq.client.consumer;
 
-import java.util.List;
 import org.apache.rocketmq.common.message.MessageExt;
 
+import java.util.List;
+
 public class PullResult {
-    private final PullStatus pullStatus;
-    private final long nextBeginOffset;
-    private final long minOffset;
-    private final long maxOffset;
-    private List<MessageExt> msgFoundList;
+  /** 拉取结果 */
+  private final PullStatus pullStatus;
+  /** 下次拉取的偏移量 */
+  private final long nextBeginOffset;
+  /** 消息队列的最小偏移量 */
+  private final long minOffset;
+  /** 消息队列的最大偏移量 */
+  private final long maxOffset;
+  /** 具体拉取的消息列表 */
+  private List<MessageExt> msgFoundList;
 
-    public PullResult(PullStatus pullStatus, long nextBeginOffset, long minOffset, long maxOffset,
-        List<MessageExt> msgFoundList) {
-        super();
-        this.pullStatus = pullStatus;
-        this.nextBeginOffset = nextBeginOffset;
-        this.minOffset = minOffset;
-        this.maxOffset = maxOffset;
-        this.msgFoundList = msgFoundList;
-    }
+  public PullResult(
+      PullStatus pullStatus,
+      long nextBeginOffset,
+      long minOffset,
+      long maxOffset,
+      List<MessageExt> msgFoundList) {
+    super();
+    this.pullStatus = pullStatus;
+    this.nextBeginOffset = nextBeginOffset;
+    this.minOffset = minOffset;
+    this.maxOffset = maxOffset;
+    this.msgFoundList = msgFoundList;
+  }
 
-    public PullStatus getPullStatus() {
-        return pullStatus;
-    }
+  public PullStatus getPullStatus() {
+    return pullStatus;
+  }
 
-    public long getNextBeginOffset() {
-        return nextBeginOffset;
-    }
+  public long getNextBeginOffset() {
+    return nextBeginOffset;
+  }
 
-    public long getMinOffset() {
-        return minOffset;
-    }
+  public long getMinOffset() {
+    return minOffset;
+  }
 
-    public long getMaxOffset() {
-        return maxOffset;
-    }
+  public long getMaxOffset() {
+    return maxOffset;
+  }
 
-    public List<MessageExt> getMsgFoundList() {
-        return msgFoundList;
-    }
+  public List<MessageExt> getMsgFoundList() {
+    return msgFoundList;
+  }
 
-    public void setMsgFoundList(List<MessageExt> msgFoundList) {
-        this.msgFoundList = msgFoundList;
-    }
+  public void setMsgFoundList(List<MessageExt> msgFoundList) {
+    this.msgFoundList = msgFoundList;
+  }
 
-    @Override
-    public String toString() {
-        return "PullResult [pullStatus=" + pullStatus + ", nextBeginOffset=" + nextBeginOffset
-            + ", minOffset=" + minOffset + ", maxOffset=" + maxOffset + ", msgFoundList="
-            + (msgFoundList == null ? 0 : msgFoundList.size()) + "]";
-    }
+  @Override
+  public String toString() {
+    return "PullResult [pullStatus="
+        + pullStatus
+        + ", nextBeginOffset="
+        + nextBeginOffset
+        + ", minOffset="
+        + minOffset
+        + ", maxOffset="
+        + maxOffset
+        + ", msgFoundList="
+        + (msgFoundList == null ? 0 : msgFoundList.size())
+        + "]";
+  }
 }

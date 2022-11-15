@@ -23,19 +23,18 @@ public class PushConsumer {
     consumer.setNamesrvAddr("localhost:9876");
     consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_FIRST_OFFSET);
     consumer.setMessageModel(MessageModel.CLUSTERING);
-    consumer.subscribe("TopicTest", "*");
-    consumer.registerMessageListener((MessageListenerConcurrently) (msgs, context) -> {
-      log.info("threadId:{}， msg:{}", Thread
-          .currentThread()
-          .getId(), msgs.toString());
-      return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
-    });
+    consumer.subscribe("test", "*");
+    consumer.registerMessageListener(
+        (MessageListenerConcurrently)
+            (msgs, context) -> {
+              log.info("threadId:{}， msg:{}", Thread.currentThread().getId(), msgs.toString());
+              return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            });
     consumer.start();
     // 获取订阅消息队列
     // 在 DefaultMQPushConsumer模式下，即使 namesrv地址填错也不会出现异常，如果需要，执行以下代码
-    consumer.fetchSubscribeMessageQueues("TopicTest");
+//    consumer.fetchSubscribeMessageQueues("TopicTest");
     new Scanner(System.in).nextLine();
     consumer.shutdown();
-    
   }
 }
