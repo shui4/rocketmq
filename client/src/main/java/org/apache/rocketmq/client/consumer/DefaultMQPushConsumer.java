@@ -26,6 +26,7 @@ import org.apache.rocketmq.client.consumer.store.OffsetStore;
 import org.apache.rocketmq.client.exception.MQBrokerException;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.client.impl.consumer.DefaultMQPushConsumerImpl;
+import org.apache.rocketmq.client.impl.consumer.ProcessQueue;
 import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.client.trace.AsyncTraceDispatcher;
 import org.apache.rocketmq.client.trace.TraceDispatcher;
@@ -107,7 +108,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
   private String consumeTimestamp =
       UtilAll.timeMillisToHumanString3(System.currentTimeMillis() - (1000 * 60 * 30));
 
-  /** 集群模式下消息队列的负载 策略 */
+  /** 集群模式下消息队列的负载策略 */
   private AllocateMessageQueueStrategy allocateMessageQueueStrategy;
 
   /** 订阅信息 */
@@ -126,16 +127,20 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
   /** 消费者最大线程数，因为消费 者线程池使用无界队列，所以此参数不生效 */
   private int consumeThreadMax = 20;
 
-  /** Threshold for dynamic adjustment of the number of thread pool */
+  /** 线程池数量动态调整阈值 */
   private long adjustThreadPoolNumsThreshold = 100000;
 
   /**
-   * 并发消息消费时处理队 列最大跨度，默认2000，表示如果消息处理队列中偏移量最大的消息 与偏移量最小的消息的跨度超过2000，则延迟50ms后再拉取消息。<br>
-   * 它对顺序消耗没有影响
+   * 并发消息消费时处理队 列最大跨度，默认 2000 ，表示如果消息消费时处理队列 {@link ProcessQueue} 中偏移量最大的消息 与偏移量最小的消息的跨度超过 2000 ，则延迟
+   * 50ms 后再拉取消息。 <br>
+   * 它对顺序消费没有影响。<br>
    */
   private int consumeConcurrentlyMaxSpan = 2000;
 
-  /** 队列级别的流控阈值，每个消息队列默认最多缓存1000条消息，考虑{@code pullBatchSize} ，瞬时值可能超过限制 */
+  /**
+   * 队列级别的流控阈值，每个消息队列默认最多缓存1000条消息，考虑{@code pullBatchSize} ，瞬时值可能超过限制<br>
+   * 每 1000 次流控后打印流控日志
+   */
   private int pullThresholdForQueue = 1000;
 
   /**
@@ -158,10 +163,10 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
    */
   private int pullThresholdSizeForTopic = -1;
 
-  /** 推模式下拉取任务的间隔时间，默 认一次拉取任务完成后继续拉取 */
+  /** 推模式下拉取任务的间隔时间，默认一次拉取任务完成后继续拉取 */
   private long pullInterval = 0;
 
-  /** 消息并发消费时一次 消费消息的条数，通俗点说，就是每次传入 MessageListener#consumeMessage 中的消息条数 */
+  /** 消息并发消费时一次 消费消息的条数，通俗点说，就是每次传入 {@link MessageListenerConcurrently#consumeMessage} 中的消息条数 */
   private int consumeMessageBatchMaxSize = 1;
 
   /** 每次消息拉取的条数，默认32条 */

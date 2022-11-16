@@ -94,7 +94,7 @@
 
         <!-- Maven properties -->
         <maven.test.skip>false</maven.test.skip>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
+        <maven.javadoc.skip>false</maven.javadoc.skip>
         <!-- Compiler settings properties -->
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -318,6 +318,16 @@
                 <artifactId>sonar-maven-plugin</artifactId>
                 <version>3.0.2</version>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <additionalJOption>-Xdoclint:none</additionalJOption>
+                    <show>private</show>
+                </configuration>
+            </plugin>
+
         </plugins>
 
         <pluginManagement>
@@ -337,28 +347,30 @@
                 <jdk>[1.8,)</jdk>
             </activation>
             <!-- Disable doclint under JDK 8 -->
-            <reporting>
+            <!--<reporting>
                 <plugins>
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.10.4</version>
+                        <version>3.3.1</version>
                         <configuration>
-                            <additionalparam>-Xdoclint:none</additionalparam>
+                            <additionalJOption>-Xdoclint:none</additionalJOption>
+                            <show>private</show>
                         </configuration>
                     </plugin>
                 </plugins>
-            </reporting>
-            <build>
+            </reporting>-->
+            <!--<build>
                 <plugins>
                     <plugin>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>2.10.4</version>
+                        <version>3.3.1</version>
                         <configuration>
-                            <additionalparam>-Xdoclint:none</additionalparam>
+                            <additionalJOption>-Xdoclint:none</additionalJOption>
+                            <level>private</level>
                         </configuration>
                     </plugin>
                 </plugins>
-            </build>
+            </build>-->
         </profile>
         <profile>
             <id>release-sign-artifacts</id>
