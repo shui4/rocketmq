@@ -11,6 +11,7 @@
           <option name="goals">
             <list>
               <option value="javadoc:aggregate" />
+              <option value="antrun:run" />
             </list>
           </option>
           <option name="pomFileName" value="pom.xml" />
