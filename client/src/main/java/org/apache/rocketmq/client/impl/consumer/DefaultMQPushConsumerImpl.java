@@ -946,6 +946,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
   }
 
   public synchronized void start() throws MQClientException {
+    // 根据服务状态进行处理
     switch (this.serviceState) {
         // 服务刚刚创建，未启动
       case CREATE_JUST:
@@ -956,9 +957,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
               this.defaultMQPushConsumer.getMessageModel(),
               this.defaultMQPushConsumer.isUnitMode());
           this.serviceState = ServiceState.START_FAILED;
-
+          // 检查配置属性
           this.checkConfig();
-          // 复制订阅
+          // 订阅信息和 ( 重试前缀 + 消费组的订阅 ) 信息加入 RebalanceImpl
+
           this.copySubscription();
 
           if (this.defaultMQPushConsumer.getMessageModel() == MessageModel.CLUSTERING) {
@@ -969,7 +971,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
               MQClientManager.getInstance()
                   .getOrCreateMQClientInstance(this.defaultMQPushConsumer, this.rpcHook);
 
-          // region 设置reBalance策略
+          // region 初始化RebalanceImpl（消息重新负载实现类）
           this.rebalanceImpl.setConsumerGroup(this.defaultMQPushConsumer.getConsumerGroup());
           this.rebalanceImpl.setMessageModel(this.defaultMQPushConsumer.getMessageModel());
           this.rebalanceImpl.setAllocateMessageQueueStrategy(
@@ -1269,7 +1271,8 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         case BROADCASTING:
           break;
         case CLUSTERING:
-          // 消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY%+ 消费组名。消费者在启动时会自动订阅该主题，参与该主题的消息队列负载
+          // 消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY%+ 消费组名。
+          // 消费者在启动时会自动订阅该主题，参与该主题的消息队列负载
           final String retryTopic =
               MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup());
           SubscriptionData subscriptionData =
