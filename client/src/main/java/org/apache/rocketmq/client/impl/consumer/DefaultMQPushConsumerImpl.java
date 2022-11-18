@@ -100,7 +100,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
   private OffsetStore offsetStore;
   private volatile boolean pause = false;
   private PullAPIWrapper pullAPIWrapper;
-  /** Delay some time when exception occur */
+  /** 发生异常时延迟一段时间 */
   private long pullTimeDelayMillsWhenException = 3000;
 
   private long queueFlowControlTimes = 0;
@@ -282,7 +282,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
       return;
     }
     // ? 暂停
-    // * 将拉取任务延迟1秒再放入PullMessageService的拉取任务队列中，再结束
+    // 将 pullRequest 通过定时器重新放入队列（这里将延迟 1s ），再结束
     if (this.isPause()) {
       log.warn(
           "consumer was paused, execute pull request later. instanceName={}, group={}",
@@ -292,11 +292,14 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
       return;
     }
     // region 流控
+    // 消息总数
     long cachedMessageCount = processQueue.getMsgCount().get();
+    // 消息总大小
     long cachedMessageSizeInMiB = processQueue.getMsgSize().get() / (1024 * 1024);
     // ? 消息数量达到阈值
-    //  * 放弃本次拉取任务，并且该队列的下一次拉取任务将在 50ms 后才加入拉取任务队列
+    // 放弃本次拉取任务
     if (cachedMessageCount > this.defaultMQPushConsumer.getPullThresholdForQueue()) {
+      // 该队列的下一次拉取任务将在 50ms 后才加入拉取任务队列
       this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
       // 每触发 1000 次流控后输出提示语
       if ((queueFlowControlTimes++ % 1000) == 0) {
@@ -313,7 +316,6 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
       return;
     }
     // ? 消息总大小达到阈值
-    // 停止工作
     if (cachedMessageSizeInMiB > this.defaultMQPushConsumer.getPullThresholdSizeForQueue()) {
       this.executePullRequestLater(pullRequest, PULL_TIME_DELAY_MILLS_WHEN_FLOW_CONTROL);
       if ((queueFlowControlTimes++ % 1000) == 0) {
@@ -397,15 +399,15 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     final SubscriptionData subscriptionData =
         this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
     // ? 订阅信息为空
-    // * 结束
     if (null == subscriptionData) {
+      // 该队列的下一次拉取任务将延迟 3s 执行
       this.executePullRequestLater(pullRequest, pullTimeDelayMillsWhenException);
       log.warn("find the consumer's subscription failed, {}", pullRequest);
       return;
     }
 
     final long beginTimestamp = System.currentTimeMillis();
-
+    // 从Broker拉取到消息后的回调方法
     PullCallback pullCallback =
         new PullCallback() {
           @Override

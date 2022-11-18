@@ -22,6 +22,7 @@ import org.apache.rocketmq.client.log.ClientLogger;
 import org.apache.rocketmq.common.message.MessageAccessor;
 import org.apache.rocketmq.common.message.MessageConst;
 import org.apache.rocketmq.common.message.MessageExt;
+import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 import org.apache.rocketmq.logging.InternalLogger;
 
@@ -32,7 +33,10 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-/** Queue consumption snapshot */
+/**
+ * {@link ProcessQueue} 是{@link MessageQueue}在消费端的重现、快照。 PullMessageService从消息服务器默认每次拉取32条消息，按消息队
+ * 列偏移量的顺序存放在ProcessQueue中，PullMessageService将消息 提交到消费者消费线程池，消息成功消费后，再从ProcessQueue中移除
+ */
 public class ProcessQueue {
   public static final long REBALANCE_LOCK_MAX_LIVE_TIME =
       Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockMaxLiveTime", "30000"));
@@ -43,7 +47,12 @@ public class ProcessQueue {
   private final InternalLogger log = ClientLogger.getLog();
   /** 读写锁，控制多线程并发修改 {@link #msgTreeMap} 、 msgTreeMapTemp */
   private final ReadWriteLock treeMapLock = new ReentrantReadWriteLock();
-  /** 消息存储容器，键为消息在 ConsumeQueue 中的偏移量 */
+  /**
+   * 消息存储容器，键为消息在 ConsumeQueue 中的偏移量
+   *
+   * @see Long 偏移量
+   * @see MessageExt 消息
+   */
   private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
   /** ProcessQueue 中总消息数 */
   private final AtomicLong msgCount = new AtomicLong();
@@ -234,7 +243,7 @@ public class ProcessQueue {
     return dispatchToConsume;
   }
 
-  /** 获取当前消息的最大间隔。 getMaxSpan()并不能说明ProceQueue包含的消息个数，但是能说明当 前处理队列中第一条消息与最后一条消息的偏移量已经超过的消息个数。 */
+  /** 获取当前消息的最大间隔。 getMaxSpan()并不能说明ProceQueue包含的消息个数，但是能说明当 前处理队列中第一条消息与最后一条消息的偏移量的差距。 */
   public long getMaxSpan() {
     try {
       this.treeMapLock.readLock().lockInterruptibly();

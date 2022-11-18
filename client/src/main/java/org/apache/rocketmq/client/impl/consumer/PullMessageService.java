@@ -57,7 +57,6 @@ public class PullMessageService extends ServiceThread {
       log.warn("PullMessageServiceScheduledThread has shutdown");
     }
   }
-
   public void executePullRequestImmediately(final PullRequest pullRequest) {
     try {
       this.pullRequestQueue.put(pullRequest);

@@ -222,7 +222,7 @@ public class PullAPIWrapper {
 
       String brokerAddr = findBrokerResult.getBrokerAddr();
       // ? 消息过滤模式为类过滤
-      // * 根据主题名称、 broker 地址找到注册在 Broker 上的 FilterServer 地址，从 FilterServer 上拉取消息，否则从 Broker 上拉取消息
+      // 根据主题名称、 broker 地址找到注册在 Broker 上的 FilterServer 地址，从 FilterServer 上拉取消息，否则从 Broker 上拉取消息
       if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
         brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
       }
