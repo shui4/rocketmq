@@ -16,56 +16,69 @@
  */
 package org.apache.rocketmq.client.consumer.rebalance;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.client.log.ClientLogger;
-import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
+import org.apache.rocketmq.logging.InternalLogger;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Average Hashing queue algorithm
+ * 平均分配（推荐）
+ *
+ * <p>例：如果现在有8个消息消费队列q1、q2、q3、q4、q5、 q6、q7、q8，有3个消费者c1、c2、c3，那么根据该负载算法，消息队 列分配如下：
+ *
+ * <ul>
+ *   <li>c1：q1、q2、q3。
+ *   <li>c2：q4、q5、q6。
+ *   <li>c3：q7、q8。
+ * </ul>
  */
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
-    private final InternalLogger log = ClientLogger.getLog();
+  private final InternalLogger log = ClientLogger.getLog();
 
-    @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
-        if (currentCID == null || currentCID.length() < 1) {
-            throw new IllegalArgumentException("currentCID is empty");
-        }
-        if (mqAll == null || mqAll.isEmpty()) {
-            throw new IllegalArgumentException("mqAll is null or mqAll empty");
-        }
-        if (cidAll == null || cidAll.isEmpty()) {
-            throw new IllegalArgumentException("cidAll is null or cidAll empty");
-        }
-
-        List<MessageQueue> result = new ArrayList<MessageQueue>();
-        if (!cidAll.contains(currentCID)) {
-            log.info("[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
-                consumerGroup,
-                currentCID,
-                cidAll);
-            return result;
-        }
-
-        int index = cidAll.indexOf(currentCID);
-        int mod = mqAll.size() % cidAll.size();
-        int averageSize =
-            mqAll.size() <= cidAll.size() ? 1 : (mod > 0 && index < mod ? mqAll.size() / cidAll.size()
-                + 1 : mqAll.size() / cidAll.size());
-        int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
-        int range = Math.min(averageSize, mqAll.size() - startIndex);
-        for (int i = 0; i < range; i++) {
-            result.add(mqAll.get((startIndex + i) % mqAll.size()));
-        }
-        return result;
+  @Override
+  public List<MessageQueue> allocate(
+      String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
+    if (currentCID == null || currentCID.length() < 1) {
+      throw new IllegalArgumentException("currentCID is empty");
+    }
+    if (mqAll == null || mqAll.isEmpty()) {
+      throw new IllegalArgumentException("mqAll is null or mqAll empty");
+    }
+    if (cidAll == null || cidAll.isEmpty()) {
+      throw new IllegalArgumentException("cidAll is null or cidAll empty");
     }
 
-    @Override
-    public String getName() {
-        return "AVG";
+    List<MessageQueue> result = new ArrayList<MessageQueue>();
+    if (!cidAll.contains(currentCID)) {
+      log.info(
+          "[BUG] ConsumerGroup: {} The consumerId: {} not in cidAll: {}",
+          consumerGroup,
+          currentCID,
+          cidAll);
+      return result;
     }
+
+    int index = cidAll.indexOf(currentCID);
+    int mod = mqAll.size() % cidAll.size();
+    int averageSize =
+        mqAll.size() <= cidAll.size()
+            ? 1
+            : (mod > 0 && index < mod
+                ? mqAll.size() / cidAll.size() + 1
+                : mqAll.size() / cidAll.size());
+    int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
+    int range = Math.min(averageSize, mqAll.size() - startIndex);
+    for (int i = 0; i < range; i++) {
+      result.add(mqAll.get((startIndex + i) % mqAll.size()));
+    }
+    return result;
+  }
+
+  @Override
+  public String getName() {
+    return "AVG";
+  }
 }

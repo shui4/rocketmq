@@ -32,6 +32,6 @@ public enum ConsumeFromWhere {
   CONSUME_FROM_MAX_OFFSET,
   /** 从队列当前最小偏移量开始消费 */
   CONSUME_FROM_FIRST_OFFSET,
-  /** 从消费者指定时间戳开始消费<br> */
+  /** 从消费者指定时间戳开始消费 */
   CONSUME_FROM_TIMESTAMP,
 }

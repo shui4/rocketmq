@@ -16,29 +16,31 @@
  */
 package org.apache.rocketmq.client.consumer.rebalance;
 
-import java.util.List;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+import java.util.List;
+
+/** 根据配置，为每一个消费者 配置固定的消息队列 */
 public class AllocateMessageQueueByConfig implements AllocateMessageQueueStrategy {
-    private List<MessageQueue> messageQueueList;
+  private List<MessageQueue> messageQueueList;
 
-    @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
-        return this.messageQueueList;
-    }
+  @Override
+  public List<MessageQueue> allocate(
+      String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
+    return this.messageQueueList;
+  }
 
-    @Override
-    public String getName() {
-        return "CONFIG";
-    }
+  @Override
+  public String getName() {
+    return "CONFIG";
+  }
 
-    public List<MessageQueue> getMessageQueueList() {
-        return messageQueueList;
-    }
+  public List<MessageQueue> getMessageQueueList() {
+    return messageQueueList;
+  }
 
-    public void setMessageQueueList(List<MessageQueue> messageQueueList) {
-        this.messageQueueList = messageQueueList;
-    }
+  public void setMessageQueueList(List<MessageQueue> messageQueueList) {
+    this.messageQueueList = messageQueueList;
+  }
 }

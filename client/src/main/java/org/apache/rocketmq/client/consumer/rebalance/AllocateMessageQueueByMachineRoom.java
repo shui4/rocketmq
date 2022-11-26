@@ -16,68 +16,67 @@
  */
 package org.apache.rocketmq.client.consumer.rebalance;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.client.consumer.AllocateMessageQueueStrategy;
 import org.apache.rocketmq.common.message.MessageQueue;
 
-/**
- * Computer room Hashing queue algorithm, such as Alipay logic room
- */
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+/** 根据Broker部署机房名，对每个消费者负责不同的Broker上的队列 */
 public class AllocateMessageQueueByMachineRoom implements AllocateMessageQueueStrategy {
-    private Set<String> consumeridcs;
+  private Set<String> consumeridcs;
 
-    @Override
-    public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
-        List<String> cidAll) {
-        if (StringUtils.isBlank(currentCID)) {
-            throw new IllegalArgumentException("currentCID is empty");
-        }
-        if (CollectionUtils.isEmpty(mqAll)) {
-            throw new IllegalArgumentException("mqAll is null or mqAll empty");
-        }
-        if (CollectionUtils.isEmpty(cidAll)) {
-            throw new IllegalArgumentException("cidAll is null or cidAll empty");
-        }
-        List<MessageQueue> result = new ArrayList<MessageQueue>();
-        int currentIndex = cidAll.indexOf(currentCID);
-        if (currentIndex < 0) {
-            return result;
-        }
-        List<MessageQueue> premqAll = new ArrayList<MessageQueue>();
-        for (MessageQueue mq : mqAll) {
-            String[] temp = mq.getBrokerName().split("@");
-            if (temp.length == 2 && consumeridcs.contains(temp[0])) {
-                premqAll.add(mq);
-            }
-        }
-
-        int mod = premqAll.size() / cidAll.size();
-        int rem = premqAll.size() % cidAll.size();
-        int startIndex = mod * currentIndex;
-        int endIndex = startIndex + mod;
-        for (int i = startIndex; i < endIndex; i++) {
-            result.add(premqAll.get(i));
-        }
-        if (rem > currentIndex) {
-            result.add(premqAll.get(currentIndex + mod * cidAll.size()));
-        }
-        return result;
+  @Override
+  public List<MessageQueue> allocate(
+      String consumerGroup, String currentCID, List<MessageQueue> mqAll, List<String> cidAll) {
+    if (StringUtils.isBlank(currentCID)) {
+      throw new IllegalArgumentException("currentCID is empty");
+    }
+    if (CollectionUtils.isEmpty(mqAll)) {
+      throw new IllegalArgumentException("mqAll is null or mqAll empty");
+    }
+    if (CollectionUtils.isEmpty(cidAll)) {
+      throw new IllegalArgumentException("cidAll is null or cidAll empty");
+    }
+    List<MessageQueue> result = new ArrayList<MessageQueue>();
+    int currentIndex = cidAll.indexOf(currentCID);
+    if (currentIndex < 0) {
+      return result;
+    }
+    List<MessageQueue> premqAll = new ArrayList<MessageQueue>();
+    for (MessageQueue mq : mqAll) {
+      String[] temp = mq.getBrokerName().split("@");
+      if (temp.length == 2 && consumeridcs.contains(temp[0])) {
+        premqAll.add(mq);
+      }
     }
 
-    @Override
-    public String getName() {
-        return "MACHINE_ROOM";
+    int mod = premqAll.size() / cidAll.size();
+    int rem = premqAll.size() % cidAll.size();
+    int startIndex = mod * currentIndex;
+    int endIndex = startIndex + mod;
+    for (int i = startIndex; i < endIndex; i++) {
+      result.add(premqAll.get(i));
     }
+    if (rem > currentIndex) {
+      result.add(premqAll.get(currentIndex + mod * cidAll.size()));
+    }
+    return result;
+  }
 
-    public Set<String> getConsumeridcs() {
-        return consumeridcs;
-    }
+  @Override
+  public String getName() {
+    return "MACHINE_ROOM";
+  }
 
-    public void setConsumeridcs(Set<String> consumeridcs) {
-        this.consumeridcs = consumeridcs;
-    }
+  public Set<String> getConsumeridcs() {
+    return consumeridcs;
+  }
+
+  public void setConsumeridcs(Set<String> consumeridcs) {
+    this.consumeridcs = consumeridcs;
+  }
 }
