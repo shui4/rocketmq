@@ -449,19 +449,20 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                             pullRequest.getConsumerGroup(),
                             pullRequest.getMessageQueue().getTopic(),
                             pullResult.getMsgFoundList().size());
-                    // 首先将拉取到的消息存入 ProcessQueue ，然后将拉取到的消息提交到 Consume MessageService 中供消费者消费
+                    // 首先将拉取到的消息存入 ProcessQueue
                     boolean dispatchToConsume =
                         processQueue.putMessage(pullResult.getMsgFoundList());
-                    // 该方法是一个异步方法，也就是PullCallBack将消息提交到ConsumeMessageService中就会立即返回，至于这些消息如何消费，
-                    // PullCallBack不会关注
+                    // 将拉取到的消息提交到 ConsumeMessageService 中供消费者消费
+                    // 该方法是一个异步方法，也就是 PullCallBack 将消息提交到 ConsumeMessageService 中就会立即返回，至于这些消息如何消费，
+                    // PullCallBack 不会关注
                     DefaultMQPushConsumerImpl.this.consumeMessageService.submitConsumeRequest(
                         pullResult.getMsgFoundList(),
                         processQueue,
                         pullRequest.getMessageQueue(),
                         dispatchToConsume);
-                    // 将消息提交给消费者线程之后，PullCallBack将立即返回，可以说本次消息拉取顺利完成。然后查看pullInterval参数，如
-                    // 果pullInterval>0，则等待pullInterval毫秒后将PullRequest对象放
-                    // 入PullMessageService的pullRequestQueue中，该消息队列的下次拉
+                    // 将消息提交给消费者线程之后， PullCallBack 将立即返回，可以说本次消息拉取顺利完成。然后查看 pullInterval 参数，如
+                    // 果 pullInterval>0 ，则等待 pullInterval 毫秒后将 PullRequest 对象放
+                    // 入 PullMessageService 的 pullRequestQueue 中，该消息队列的下次拉
                     // 取即将被激活，达到持续消息拉取，实现准实时拉取消息的效果
                     if (DefaultMQPushConsumerImpl.this.defaultMQPushConsumer.getPullInterval()
                         > 0) {
@@ -483,17 +484,17 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                   }
 
                   break;
-                  // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL 、
-                  // GetMessageResult.OFFSET_OVERFLOW_ONE
+                // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL 、
+                // GetMessageResult.OFFSET_OVERFLOW_ONE
 
-                  // OFFSET_FOUND_NULL表示根据ConsumeQueue文件的偏移量没有找到
-                  // 内容，使用偏移量定位到下一个ConsumeQueue文件，其实就是offset
-                  // +（一个ConsumeQueue文件包含多少个条目=MappedFileSize / 20）
+                // OFFSET_FOUND_NULL 表示根据 ConsumeQueue 文件的偏移量没有找到
+                // 内容，使用偏移量定位到下一个 ConsumeQueue 文件，其实就是 offset
+                // + （一个 ConsumeQueue 文件包含多少个条目 =MappedFileSize / 20 ）
 
-                  // OFFSET_OVERFLOW_ONE表示待拉取消息的物理偏移量等于消息队列
-                  // 最大的偏移量，如果有新的消息到达，此时会创建一个新的
-                  // ConsumeQueue文件，因为上一个ConsueQueue文件的最大偏移量就是下
-                  // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
+                // OFFSET_OVERFLOW_ONE 表示待拉取消息的物理偏移量等于消息队列
+                // 最大的偏移量，如果有新的消息到达，此时会创建一个新的
+                // ConsumeQueue 文件，因为上一个 ConsueQueue 文件的最大偏移量就是下
+                // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
                 case NO_NEW_MSG:
                   // 没有匹配消息
                 case NO_MATCHED_MSG:

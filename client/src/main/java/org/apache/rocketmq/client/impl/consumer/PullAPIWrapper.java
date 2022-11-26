@@ -66,6 +66,7 @@ public class PullAPIWrapper {
 
   public PullResult processPullResult(
       final MessageQueue mq, final PullResult pullResult, final SubscriptionData subscriptionData) {
+    // 根据响应结果解码成 PullResultExt 对象
     PullResultExt pullResultExt = (PullResultExt) pullResult;
 
     this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());

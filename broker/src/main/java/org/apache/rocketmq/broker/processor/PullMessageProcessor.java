@@ -332,8 +332,11 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
     if (getMessageResult != null) {
       // 根据 PullResult 填充 responseHeader 的 NextBeginOffset 、 MinOffset 、 MaxOffset
       response.setRemark(getMessageResult.getStatus().name());
+      // 待查找队列的偏移量
       responseHeader.setNextBeginOffset(getMessageResult.getNextBeginOffset());
+      // 当前消息队列的最小偏移量
       responseHeader.setMinOffset(getMessageResult.getMinOffset());
+      // 当前 CommitLog 文件的最大偏移量
       responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
       // 根据主从同步延迟，如果从节点数据包含下一次拉取的偏移量，则设置下一次拉取任务的brokerId
       if (getMessageResult.isSuggestPullingFromSlave()) {
@@ -368,7 +371,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
       } else {
         responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
       }
-
+      // 状态映射：https://markdown.liuchengtu.com/work/?folderId=0&file_id=046087ecd0a03594e7871b6b0af6b4a4
       switch (getMessageResult.getStatus()) {
         case FOUND:
           response.setCode(ResponseCode.SUCCESS);
@@ -719,7 +722,12 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
           @Override
           public void run() {
             try {
+              // 这里的核心又回到长轮询的入口代码了，其核心是设置 brokerAllowSuspend 为 false ，表示不支持拉取线程挂起，
+              // 即当根据偏移量无法获取消息时，将不挂起线程并等待新消息，而是直接返回告诉客户端本次消息拉取未找到消息
 
+              // 回想一下，如果开启了长轮询机制， PullRequestHoldService 线程每隔 5s 被唤醒，尝试检测是否有新消息到来，直到超时才停止，
+              // 如果被挂起，需要等待 5s 再执行。消息拉取的实时性比较差，为了避免这种情况，
+              // RocketMQ 引入另外一种机制：当消息到达时唤醒挂起线程，触发一次检查
               final RemotingCommand response =
                   PullMessageProcessor.this.processRequest(channel, request, false);
 

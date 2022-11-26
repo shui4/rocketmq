@@ -1064,6 +1064,7 @@ public class DefaultMessageStore implements MessageStore {
       final long offset,
       final int maxMsgNums,
       final MessageFilter messageFilter) {
+    // region 健壮性代码
     if (this.shutdown) {
       log.warn("message store has shutdown, so getMessage is forbidden");
       return null;
@@ -1081,6 +1082,7 @@ public class DefaultMessageStore implements MessageStore {
           "message store is not available, broker config enableLmq and enableMultiDispatch, lmq consumeQueue num exceed maxLmqConsumeQueueNum config num");
       return null;
     }
+    // endregion
 
     long beginTime = this.getSystemClock().now();
 
@@ -1099,14 +1101,14 @@ public class DefaultMessageStore implements MessageStore {
       // 消息偏移量异常情况校对下一次拉取偏移量
       minOffset = consumeQueue.getMinOffsetInQueue();
       maxOffset = consumeQueue.getMaxOffsetInQueue();
-      // 表示当前消费队列中没有消息，拉取结果为NO_MESSAGE_IN_QUEUE。如果当前Broker为主节点，下次拉取偏移量为
-      // 0。如果当前Broker为从节点并且offsetCheckInSlave为true，设置下
-      // 次拉取偏移量为0。其他情况下次拉取时使用原偏移量
+      // 1）表示当前消费队列中没有消息，拉取结果为 NO_MESSAGE_IN_QUEUE 。如果当前 Broker 为主节点，下次拉取偏移量为
+      // 0 。如果当前 Broker 为从节点并且 offsetCheckInSlave 为 true ，设置下
+      // 次拉取偏移量为 0 。其他情况下次拉取时使用原偏移量
       if (maxOffset == 0) {
         status = GetMessageStatus.NO_MESSAGE_IN_QUEUE;
         nextBeginOffset = nextOffsetCorrection(offset, 0);
       }
-      // 表示待拉取消息偏移量小于队列的起始偏 移量，拉取结果为 OFFSET_TOO_SMALL 。如果当前 Broker 为主节点，下
+      // 2）表示待拉取消息偏移量小于队列的起始偏 移量，拉取结果为 OFFSET_TOO_SMALL 。如果当前 Broker 为主节点，下
       // 次拉取偏移量为队列的最小偏移量。如果当前 Broker 为从节点并且
       // offsetCheckInSlave 为 true ，下次拉取偏移量为队列的最小偏移量。
       // 其他情况下次拉取时使用原偏移量
@@ -1114,14 +1116,15 @@ public class DefaultMessageStore implements MessageStore {
         status = GetMessageStatus.OFFSET_TOO_SMALL;
         nextBeginOffset = nextOffsetCorrection(offset, minOffset);
       }
-      // offset==maxOffset ：如果待拉取偏移量等于队列最大偏移量，拉取结果为 OFFSET_OVERFLOW_ONE ，则下次拉取偏移量依然为 offset
+      // 3）如果待拉取偏移量等于队列最大偏移量，拉取结果为 OFFSET_OVERFLOW_ONE ，则下次拉取偏移量依然为 offset
       else if (offset == maxOffset) {
         status = GetMessageStatus.OFFSET_OVERFLOW_ONE;
         nextBeginOffset = nextOffsetCorrection(offset, offset);
       }
-      // 表示偏移量越界，拉取结果为OFFSET_OVERFLOW_BADLY。此时需要考虑当前队列的偏移量是否为0，如果当前队列的最小偏移量为0，则使用最小偏移量纠正下次拉取偏移
-      // 量。如果当前队列的最小偏移量不为0，则使用该队列的最大偏移量来
-      // 纠正下次拉取偏移量。纠正逻辑与1）、2）相同
+      // 4）表示偏移量越界，拉取结果为 OFFSET_OVERFLOW_BADLY 。此时需要考虑当前队列的偏移量是否为 0 ，如果当前队列的最小偏移量为 0
+      // ，则使用最小偏移量纠正下次拉取偏移
+      // 量。如果当前队列的最小偏移量不为 0 ，则使用该队列的最大偏移量来
+      // 纠正下次拉取偏移量。纠正逻辑与 1 ）、 2 ）相同
       else if (offset > maxOffset) {
         status = GetMessageStatus.OFFSET_OVERFLOW_BADLY;
         if (0 == minOffset) {
@@ -1130,7 +1133,7 @@ public class DefaultMessageStore implements MessageStore {
           nextBeginOffset = nextOffsetCorrection(offset, maxOffset);
         }
       }
-      // 如果待拉取偏移量大于minOffset并且小于maxOffset，从当前offset处尝试拉取32条消息
+      // 5）如果待拉取偏移量大于minOffset并且小于maxOffset，从当前offset处尝试拉取32条消息
       else {
         SelectMappedBufferResult bufferConsumeQueue = consumeQueue.getIndexBuffer(offset);
         if (bufferConsumeQueue != null) {
@@ -2986,7 +2989,12 @@ public class DefaultMessageStore implements MessageStore {
                   // 调度 , 分别调用 CommitLogDispatcherBuildConsumeQueue（构建消息消费队列） 、
                   // CommitLogDispatcherBuildIndex（构建索引文件）
                   DefaultMessageStore.this.doDispatch(dispatchRequest);
-
+                  // 当新消息达到 CommitLog 文件时， ReputMessageService 线程负责
+                  // 将消息转发给 Consume Queue 文件和 Index 文件，如果 Broker 端开启了
+                  // 长轮询模式并且当前节点角色主节点，则将调用
+                  // PullRequestHoldService 线程的 notifyMessageArriving() 方法唤醒挂
+                  // 起线程，判断当前消费队列最大偏移量是否大于待拉取偏移量，如果
+                  // 大于则拉取消息。长轮询模式实现了准实时消息拉取。
                   if (BrokerRole.SLAVE
                           != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                       && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()

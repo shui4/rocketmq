@@ -93,9 +93,8 @@ public interface MessageStore {
   PutMessageResult putMessages(final MessageExtBatch messageExtBatch);
 
   /**
-   * Query at most <code>maxMsgNums</code> messages belonging to <code>topic</code> at <code>queueId
-   * </code> starting from given <code>offset</code>. Resulting messages will further be screened
-   * using provided message filter.
+   * 从给定的 <code>offset<code> 开始，在 <code>queueId <code> 处查询最多 <code>maxMsgNums<code> 条属于 <code>topic<code> 的消息。
+   * 生成的消息将使用提供的消息过滤器进一步筛选。
    *
    * @param group 消费组名称
    * @param topic 主题名称

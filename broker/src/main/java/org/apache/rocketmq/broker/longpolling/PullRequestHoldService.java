@@ -47,10 +47,10 @@ public class PullRequestHoldService extends ServiceThread {
       final String topic, final int queueId, final PullRequest pullRequest) {
     // 根据消息主题与消息队列构建key
     String key = this.buildKey(topic, queueId);
-    // 从pullRequestTable中获取该主
-    // 题队列对应的ManyPullRequest，通过ConcurrentMap的并发特性，维
-    // 护主题队列的ManyPullRequest，然后将PullRequest放入
-    // ManyPullRequest。ManyPullRequest对象内部持有一个PullRequest列
+    // 从 pullRequestTable 中获取该主
+    // 题队列对应的 ManyPullRequest ，通过 ConcurrentMap 的并发特性，维
+    // 护主题队列的 ManyPullRequest ，然后将 PullRequest 放入
+    // ManyPullRequest 。 ManyPullRequest 对象内部持有一个 PullRequest 列
     // 表，表示同一主题队列的累积拉取消息任务
     ManyPullRequest mpr = this.pullRequestTable.get(key);
     if (null == mpr) {
@@ -107,7 +107,7 @@ public class PullRequestHoldService extends ServiceThread {
   }
 
   protected void checkHoldRequest() {
-    // 遍历拉取任务表，根据主题与队列获取消息消费队列的最大偏移 量，如果该偏移量大于待拉取偏移量，说明有新的消息到达，调用 notifyMessageArriving触发消息拉取
+    // 遍历拉取任务表，根据主题与队列获取消息消费队列的最大偏移 量，如果该偏移量大于待拉取偏移量，说明有新的消息到达，调用 notifyMessageArriving 触发消息拉取
     for (String key : this.pullRequestTable.keySet()) {
       String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
       if (2 == kArray.length) {
@@ -137,10 +137,11 @@ public class PullRequestHoldService extends ServiceThread {
       byte[] filterBitMap,
       Map<String, String> properties) {
     String key = this.buildKey(topic, queueId);
-    // 首先从ManyPullRequest中获取当前该主题队列所有的挂起拉取任务。值得注意的是，该方法使用了synchronized，说明该数
-    // 据结构存在并发访问，该属性是PullRequest HoldService线程的私有属性
+    // 首先从 ManyPullRequest 中获取当前该主题队列所有的挂起拉取任务。值得注意的是，该方法使用了 synchronized ，说明该数
+    // 据结构存在并发访问，该属性是 PullRequest HoldService 线程的私有属性
     ManyPullRequest mpr = this.pullRequestTable.get(key);
     if (mpr != null) {
+      // 从 ManyPullRequest 中获取当前该主题队列所有的挂起拉取任务
       List<PullRequest> requestList = mpr.cloneListAndClear();
       if (requestList != null) {
         List<PullRequest> replayList = new ArrayList<PullRequest>();
@@ -151,7 +152,7 @@ public class PullRequestHoldService extends ServiceThread {
             newestOffset =
                 this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
           }
-          // 如果消息队列的最大偏移量大于待拉取偏移量，且消息匹配，则调用execute Request WhenWakeup将消息返回给消息拉取客户端，否则等待下一次尝试
+          // 如果消息队列的最大偏移量大于待拉取偏移量，且消息匹配，则调用 execute Request WhenWakeup 将消息返回给消息拉取客户端，否则等待下一次尝试
           if (newestOffset > request.getPullFromThisOffset()) {
             boolean match =
                 request
