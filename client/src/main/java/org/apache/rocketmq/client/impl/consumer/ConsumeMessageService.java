@@ -16,29 +16,46 @@
  */
 package org.apache.rocketmq.client.impl.consumer;
 
-import java.util.List;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 
+import java.util.List;
+
 public interface ConsumeMessageService {
-    void start();
+  void start();
 
-    void shutdown(long awaitTerminateMillis);
+  void shutdown(long awaitTerminateMillis);
 
-    void updateCorePoolSize(int corePoolSize);
+  void updateCorePoolSize(int corePoolSize);
 
-    void incCorePoolSize();
+  void incCorePoolSize();
 
-    void decCorePoolSize();
+  void decCorePoolSize();
 
-    int getCorePoolSize();
+  int getCorePoolSize();
 
-    ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg, final String brokerName);
+  /**
+   * 直接消费消息，主要用于通过管理命令接收消费消息
+   *
+   * @param msg 消息
+   * @param brokerName Broker 名称
+   * @return ignore
+   */
+  ConsumeMessageDirectlyResult consumeMessageDirectly(
+      final MessageExt msg, final String brokerName);
 
-    void submitConsumeRequest(
-        final List<MessageExt> msgs,
-        final ProcessQueue processQueue,
-        final MessageQueue messageQueue,
-        final boolean dispathToConsume);
+  /**
+   * 提交消息消费
+   *
+   * @param msgs 消息列表，默认一次从服务器最多拉取32条消息
+   * @param processQueue 消息处理队列
+   * @param messageQueue 消息所属消费队列
+   * @param dispathToConsume 是否转发到消费线程池，并发消费时忽略该参数
+   */
+  void submitConsumeRequest(
+      final List<MessageExt> msgs,
+      final ProcessQueue processQueue,
+      final MessageQueue messageQueue,
+      final boolean dispathToConsume);
 }
