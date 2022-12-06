@@ -23,13 +23,13 @@ import org.apache.rocketmq.client.exception.MQClientException;
 
 /** Push consumer */
 public interface MQPushConsumer extends MQConsumer {
-  /** Start the consumer */
+  /** 启动消费者 */
   void start() throws MQClientException;
 
-  /** Shutdown the consumer */
+  /** 关闭使用者 */
   void shutdown();
 
-  /** Register the message listener */
+  /** 注册消息侦听器 */
   @Deprecated
   void registerMessageListener(MessageListener messageListener);
 
@@ -66,37 +66,36 @@ public interface MQPushConsumer extends MQConsumer {
       throws MQClientException;
 
   /**
-   * Subscribe some topic with selector.
+   * 使用选择器订阅一些主题。
    *
-   * <p>This interface also has the ability of {@link #subscribe(String, String)}, and, support
-   * other message selection, such as {@link
-   * org.apache.rocketmq.common.filter.ExpressionType#SQL92}.
-   *
-   * <p>
-   *
-   * <p>Choose Tag: {@link MessageSelector#byTag(java.lang.String)}
+   * <p>该接口还具有以下功能： {@link #subscribe(String, String)}, 并且，支持其他消息选择，例如 {@link
+   * org.apache.rocketmq.common.filter.ExpressionType#SQL92}。
    *
    * <p>
    *
-   * <p>Choose SQL92: {@link MessageSelector#bySql(java.lang.String)}
+   * <p>选择标签: {@link MessageSelector#byTag(java.lang.String)}
    *
-   * @param selector message selector({@link MessageSelector}), can be null.
+   * <p>
+   *
+   * <p>选择 SQL92: {@link MessageSelector#bySql(java.lang.String)}
+   *
+   * @param selector 消息选择器({@link MessageSelector}), 可以为空。
    */
   void subscribe(final String topic, final MessageSelector selector) throws MQClientException;
 
   /**
    * 取消订阅
    *
-   * @param topic message topic
+   * @param topic 消息主题
    */
   void unsubscribe(final String topic);
 
-  /** Update the consumer thread pool size Dynamically */
+  /** 动态更新使用者线程池大小 */
   void updateCorePoolSize(int corePoolSize);
 
-  /** Suspend the consumption */
+  /** 暂停消费 */
   void suspend();
 
-  /** Resume the consumption */
+  /** 恢复消费 */
   void resume();
 }
