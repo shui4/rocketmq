@@ -93,10 +93,10 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             TimeUnit.MILLISECONDS,
             this.consumeRequestQueue,
             new ThreadFactoryImpl(consumeThreadPrefix));
-    // 处理延迟任务
     this.scheduledExecutorService =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryImpl("ConsumeMessageScheduledThread_"));
+    // 清理过期消息定时器
     this.cleanExpireMsgExecutors =
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryImpl("CleanExpireMsgScheduledThread_"));

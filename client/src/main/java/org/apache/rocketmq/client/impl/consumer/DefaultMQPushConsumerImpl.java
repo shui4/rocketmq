@@ -484,17 +484,17 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                   }
 
                   break;
-                // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL 、
-                // GetMessageResult.OFFSET_OVERFLOW_ONE
+                  // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL 、
+                  // GetMessageResult.OFFSET_OVERFLOW_ONE
 
-                // OFFSET_FOUND_NULL 表示根据 ConsumeQueue 文件的偏移量没有找到
-                // 内容，使用偏移量定位到下一个 ConsumeQueue 文件，其实就是 offset
-                // + （一个 ConsumeQueue 文件包含多少个条目 =MappedFileSize / 20 ）
+                  // OFFSET_FOUND_NULL 表示根据 ConsumeQueue 文件的偏移量没有找到
+                  // 内容，使用偏移量定位到下一个 ConsumeQueue 文件，其实就是 offset
+                  // + （一个 ConsumeQueue 文件包含多少个条目 =MappedFileSize / 20 ）
 
-                // OFFSET_OVERFLOW_ONE 表示待拉取消息的物理偏移量等于消息队列
-                // 最大的偏移量，如果有新的消息到达，此时会创建一个新的
-                // ConsumeQueue 文件，因为上一个 ConsueQueue 文件的最大偏移量就是下
-                // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
+                  // OFFSET_OVERFLOW_ONE 表示待拉取消息的物理偏移量等于消息队列
+                  // 最大的偏移量，如果有新的消息到达，此时会创建一个新的
+                  // ConsumeQueue 文件，因为上一个 ConsueQueue 文件的最大偏移量就是下
+                  // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
                 case NO_NEW_MSG:
                   // 没有匹配消息
                 case NO_MATCHED_MSG:
@@ -1259,9 +1259,9 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         for (final Map.Entry<String, String> entry : sub.entrySet()) {
           final String topic = entry.getKey();
           final String subString = entry.getValue();
-          // 构建主题订阅信息SubscriptionData
+          // 构建主题订阅信息 SubscriptionData
           SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(topic, subString);
-          // 加入 RebalanceImpl的订阅消息中
+          // 加入 RebalanceImpl 的订阅消息中
           this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
         }
       }
@@ -1274,7 +1274,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         case BROADCASTING:
           break;
         case CLUSTERING:
-          // 消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY%+ 消费组名。
+          // 消息重试是以消费组为单位，而不是主题，消息重试主题名为 %RETRY%+消费组名。
           // 消费者在启动时会自动订阅该主题，参与该主题的消息队列负载
           final String retryTopic =
               MixAll.getRetryTopic(this.defaultMQPushConsumer.getConsumerGroup());
