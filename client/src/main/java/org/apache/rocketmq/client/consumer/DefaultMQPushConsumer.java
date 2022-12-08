@@ -611,10 +611,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     return subscription;
   }
 
-  /**
-   * This method will be removed in a certain version after April 5, 2020, so please do not use this
-   * method.
-   */
+  /** 此方法将在2020年4月5日之后的特定版本中删除，因此请不要使用此方法。 */
   @Deprecated
   public void setSubscription(Map<String, String> subscription) {
     Map<String, String> subscriptionWithNamespace = new HashMap<String, String>();

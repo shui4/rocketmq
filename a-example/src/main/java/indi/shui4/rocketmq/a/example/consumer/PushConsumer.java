@@ -27,7 +27,7 @@ public class PushConsumer {
     consumer.registerMessageListener(
         (MessageListenerConcurrently)
             (msgs, context) -> {
-              log.info("threadId:{}， msg:{}", Thread.currentThread().getId(), msgs.toString());
+                  log.info("threadId:{}， msg:{}", Thread.currentThread().getId(), msgs.toString());
               return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             });
     consumer.start();

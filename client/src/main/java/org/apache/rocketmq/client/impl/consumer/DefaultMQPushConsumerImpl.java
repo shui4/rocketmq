@@ -1254,6 +1254,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
 
   private void copySubscription() throws MQClientException {
     try {
+      //region 过期方法，已弃用
       Map<String, String> sub = this.defaultMQPushConsumer.getSubscription();
       if (sub != null) {
         for (final Map.Entry<String, String> entry : sub.entrySet()) {
@@ -1265,6 +1266,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
           this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
         }
       }
+      //endregion
 
       if (null == this.messageListenerInner) {
         this.messageListenerInner = this.defaultMQPushConsumer.getMessageListener();
