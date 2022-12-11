@@ -87,20 +87,20 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
    *
    * @param channel 网络通道，通过该通道向消息拉取客户端 发送响应结果
    * @param request 消息拉取请求
-   * @param brokerAllowSuspend Broker端是否支持挂起，
+   * @param brokerAllowSuspend Broker 端是否支持挂起，
    *     <ul>
-   *       <li>处理 消息拉取时默认传入true，表示如果未找到消息则挂起，
-   *       <li>如果该参数为false，未找到消息时直接返回客户端消息未找到。
+   *       <li> 处理 消息拉取时默认传入 true，表示如果未找到消息则挂起，
+   *       <li> 如果该参数为 false，未找到消息时直接返回客户端消息未找到。
    *     </ul>
    *     <br>
-   *     <p>为true，表示支持挂起，则将响应对象 response设置为null，不会立即向客户端写入响应，hasSuspendFlag 参数在拉取消息时构建的拉取标记默认为true。
-   *     <br>
-   *     默认支持挂起，根据是否开启长轮询决定挂起方式。如果开启长 轮询模式，挂起超时时间来自请求参数，推模式默认为15s，拉模式通
-   *     过DefaultMQPullConsumer#brokerSuspenMaxTimeMillis进行设置，默 认20s。然后创建拉取任务PullRequest并提交到
-   *     PullRequestHoldService线程中. RocketMQ轮询机制由两个线程共同完成。
+   *     <p> 为 true，表示支持挂起，则将响应对象 response 设置为 null，不会立即向客户端写入响应，hasSuspendFlag 参数在拉取消息时构建的拉取标记默认为
+   *     true。 <br>
+   *     默认支持挂起，根据是否开启长轮询决定挂起方式。如果开启长 轮询模式，挂起超时时间来自请求参数，推模式默认为 15s，拉模式通 过
+   *     DefaultMQPullConsumer#brokerSuspenMaxTimeMillis 进行设置，默 认 20s。然后创建拉取任务 PullRequest 并提交到
+   *     PullRequestHoldService 线程中. RocketMQ 轮询机制由两个线程共同完成。
    *     <ol>
-   *       <li>{@link PullRequestHoldService}：每隔5s重试一次。
-   *       <li>{@link DefaultMessageStore#reputMessageService }：每处理一次重 新拉取，线程休眠1s，继续下一次检查。
+   *       <li>{@link PullRequestHoldService}：每隔 5s 重试一次。
+   *       <li>{@link DefaultMessageStore#reputMessageService}：每处理一次重 新拉取，线程休眠 1s，继续下一次检查。
    *     </ol>
    *
    * @return {@link RemotingCommand}
@@ -121,7 +121,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
     response.setOpaque(request.getOpaque());
 
     log.debug("receive PullMessage request command, {}", request);
-
+    // region 验证
     if (!PermName.isReadable(this.brokerController.getBrokerConfig().getBrokerPermission())) {
       response.setCode(ResponseCode.NO_PERMISSION);
       response.setRemark(
@@ -147,7 +147,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
 
     if (!subscriptionGroupConfig.isConsumeEnable()) {
       response.setCode(ResponseCode.NO_PERMISSION);
-      response.setRemark("subscription group no permission, " + requestHeader.getConsumerGroup());
+      response.setRemark("subscription group no permission," + requestHeader.getConsumerGroup());
       return response;
     }
 
@@ -181,7 +181,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
     }
 
     if (requestHeader.getQueueId() < 0
-        || requestHeader.getQueueId() >= topicConfig.getReadQueueNums()) {
+        || requestHeader.getQueueId()>= topicConfig.getReadQueueNums()) {
       String errorInfo =
           String.format(
               "queueId[%d] is illegal, topic:[%s] topicConfig.readQueueNums:[%d] consumer:[%s]",
@@ -239,7 +239,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
       }
 
       if (!subscriptionGroupConfig.isConsumeBroadcastEnable()
-          && consumerGroupInfo.getMessageModel() == MessageModel.BROADCASTING) {
+          && consumerGroupInfo.getMessageModel()== MessageModel.BROADCASTING) {
         response.setCode(ResponseCode.NO_PERMISSION);
         response.setRemark(
             "the consumer group["
@@ -299,7 +299,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
         && !this.brokerController.getBrokerConfig().isEnablePropertyFilter()) {
       response.setCode(ResponseCode.SYSTEM_ERROR);
       response.setRemark(
-          "The broker does not support consumer to filter message by "
+          "The broker does not support consumer to filter message by"
               + subscriptionData.getExpressionType());
       return response;
     }
@@ -318,6 +318,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
               consumerFilterData,
               this.brokerController.getConsumerFilterManager());
     }
+    // endregion
     // 查找消息
     final GetMessageResult getMessageResult =
         this.brokerController
@@ -330,15 +331,15 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
                 requestHeader.getMaxMsgNums(),
                 messageFilter);
     if (getMessageResult != null) {
-      // 根据 PullResult 填充 responseHeader 的 NextBeginOffset 、 MinOffset 、 MaxOffset
       response.setRemark(getMessageResult.getStatus().name());
+      // region  根据 PullResult 填充 responseHeader 的 NextBeginOffset 、 MinOffset 、 MaxOffset
       // 待查找队列的偏移量
       responseHeader.setNextBeginOffset(getMessageResult.getNextBeginOffset());
       // 当前消息队列的最小偏移量
       responseHeader.setMinOffset(getMessageResult.getMinOffset());
       // 当前 CommitLog 文件的最大偏移量
       responseHeader.setMaxOffset(getMessageResult.getMaxOffset());
-      // 根据主从同步延迟，如果从节点数据包含下一次拉取的偏移量，则设置下一次拉取任务的brokerId
+      // 根据主从同步延迟，如果从节点数据包含下一次拉取的偏移量，则设置下一次拉取任务的 brokerId
       if (getMessageResult.isSuggestPullingFromSlave()) {
         responseHeader.setSuggestWhichBrokerId(
             subscriptionGroupConfig.getWhichBrokerWhenConsumeSlowly());
@@ -371,6 +372,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
       } else {
         responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
       }
+      // endregion
+      
       // 状态映射：https://markdown.liuchengtu.com/work/?folderId=0&file_id=046087ecd0a03594e7871b6b0af6b4a4
       switch (getMessageResult.getStatus()) {
         case FOUND:
@@ -502,7 +505,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
                     requestHeader.getConsumerGroup(),
                     requestHeader.getTopic(),
                     requestHeader.getQueueId(),
-                    (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
+                    (int) (this.brokerController.getMessageStore().now()- beginTimeMills));
             response.setBody(r);
           } else {
             try {

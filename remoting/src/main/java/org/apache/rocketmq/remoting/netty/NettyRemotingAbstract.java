@@ -441,9 +441,9 @@ public abstract class NettyRemotingAbstract {
         if ((System.currentTimeMillis() % 10000) == 0) {
           log.warn(
               RemotingHelper.parseChannelRemoteAddr(ctx.channel())
-                  + ", too many requests and system thread pool busy, RejectedExecutionException "
+                  + ", too many requests and system thread pool busy, RejectedExecutionException"
                   + pair.getObject2().toString()
-                  + " request code: "
+                  + "request code:"
                   + cmd.getCode());
         }
 
@@ -457,7 +457,7 @@ public abstract class NettyRemotingAbstract {
         }
       }
     } else {
-      String error = " request type " + cmd.getCode() + " not supported";
+      String error = "request type" + cmd.getCode() + "not supported";
       final RemotingCommand response =
           RemotingCommand.createResponseCommand(
               RemotingSysResponseCode.REQUEST_CODE_NOT_SUPPORTED, error);
@@ -489,7 +489,7 @@ public abstract class NettyRemotingAbstract {
       }
     } else {
       log.warn(
-          "receive response, but not matched any request, "
+          "receive response, but not matched any request,"
               + RemotingHelper.parseChannelRemoteAddr(ctx.channel()));
       log.warn(cmd.toString());
     }
@@ -532,7 +532,7 @@ public abstract class NettyRemotingAbstract {
         rep.release();
         it.remove();
         rfList.add(rep);
-        log.warn("remove timeout request, " + rep);
+        log.warn("remove timeout request," + rep);
       }
     }
 
@@ -592,7 +592,7 @@ public abstract class NettyRemotingAbstract {
 
     @Override
     public void run() {
-      log.info(this.getServiceName() + " service started");
+      log.info(this.getServiceName() + "service started");
 
       final ChannelEventListener listener = NettyRemotingAbstract.this.getChannelEventListener();
 
@@ -622,11 +622,11 @@ public abstract class NettyRemotingAbstract {
             }
           }
         } catch (Exception e) {
-          log.warn(this.getServiceName() + " service has exception. ", e);
+          log.warn(this.getServiceName() + "service has exception.", e);
         }
       }
 
-      log.info(this.getServiceName() + " service end");
+      log.info(this.getServiceName() + "service end");
     }
 
     @Override

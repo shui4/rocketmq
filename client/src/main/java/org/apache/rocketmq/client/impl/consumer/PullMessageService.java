@@ -42,6 +42,12 @@ public class PullMessageService extends ServiceThread {
     this.mQClientFactory = mQClientFactory;
   }
 
+  /**
+   * 稍后执行拉取请求
+   *
+   * @param pullRequest ignore
+   * @param timeDelay 延迟时间
+   */
   public void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
     if (!isStopped()) {
       this.scheduledExecutorService.schedule(
@@ -57,6 +63,7 @@ public class PullMessageService extends ServiceThread {
       log.warn("PullMessageServiceScheduledThread has shutdown");
     }
   }
+
   public void executePullRequestImmediately(final PullRequest pullRequest) {
     try {
       this.pullRequestQueue.put(pullRequest);
@@ -101,6 +108,7 @@ public class PullMessageService extends ServiceThread {
   }
 
   private void pullMessage(final PullRequest pullRequest) {
+    // 一个应用程序可以对应多个线程组，这里根据线程组获取 DefaultMQPushConsumerImpl
     final MQConsumerInner consumer =
         this.mQClientFactory.selectConsumer(pullRequest.getConsumerGroup());
     if (consumer != null) {

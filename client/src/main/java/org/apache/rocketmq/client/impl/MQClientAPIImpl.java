@@ -409,10 +409,10 @@ public class MQClientAPIImpl {
         context,
         producer);
   }
-  // 代码清单3-26
-  // 主要包含如下重要信息：生产者组、主题名称、默认创建主题key、
-  // 该主题在单个Broker上的默认队列数、队列ID（队列序号）、消息系统标记(MessageSysFlag)、消息发送时间、消息标记
-  // （RocketMQ对消息中的标记不做任何处理，供应用程序使用）、消息扩展属性、消息重试次数、是否是批量消息等，
+  // 代码清单 3-26
+  // 主要包含如下重要信息：生产者组、主题名称、默认创建主题 key、
+  // 该主题在单个 Broker 上的默认队列数、队列 ID（队列序号）、消息系统标记 (MessageSysFlag)、消息发送时间、消息标记
+  // （RocketMQ 对消息中的标记不做任何处理，供应用程序使用）、消息扩展属性、消息重试次数、是否是批量消息等，
   public SendResult sendMessage(
       final String addr,
       final String brokerName,
@@ -444,7 +444,7 @@ public class MQClientAPIImpl {
             RemotingCommand.createRequestCommand(RequestCode.SEND_REPLY_MESSAGE, requestHeader);
       }
     } else {
-      // sendSmartMsg 默认为true
+      // sendSmartMsg 默认为 true
       if (sendSmartMsg || msg instanceof MessageBatch) {
         SendMessageRequestHeaderV2 requestHeaderV2 =
             SendMessageRequestHeaderV2.createSendMessageRequestHeaderV2(requestHeader);
@@ -618,7 +618,7 @@ public class MQClientAPIImpl {
                 } else if (responseFuture.isTimeout()) {
                   MQClientException ex =
                       new MQClientException(
-                          "wait response timeout " + responseFuture.getTimeoutMillis() + "ms",
+                          "wait response timeout" + responseFuture.getTimeoutMillis() + "ms",
                           responseFuture.getCause());
                   onExceptionImpl(
                       brokerName,
@@ -867,13 +867,16 @@ public class MQClientAPIImpl {
         RemotingCommand.createRequestCommand(RequestCode.PULL_MESSAGE, requestHeader);
 
     switch (communicationMode) {
+        // 单向
       case ONEWAY:
         assert false;
         return null;
       case ASYNC:
+        // 异步
         this.pullMessageAsync(addr, request, timeoutMillis, pullCallback);
         return null;
       case SYNC:
+        // 同步
         return this.pullMessageSync(addr, request, timeoutMillis);
       default:
         assert false;
@@ -909,27 +912,27 @@ public class MQClientAPIImpl {
               if (!responseFuture.isSendRequestOK()) {
                 pullCallback.onException(
                     new MQClientException(
-                        "send request failed to " + addr + ". Request: " + request,
+                        "send request failed to" + addr + ". Request:" + request,
                         responseFuture.getCause()));
               } else if (responseFuture.isTimeout()) {
                 pullCallback.onException(
                     new MQClientException(
-                        "wait response from "
+                        "wait response from"
                             + addr
-                            + " timeout :"
+                            + "timeout :"
                             + responseFuture.getTimeoutMillis()
                             + "ms"
-                            + ". Request: "
+                            + ". Request:"
                             + request,
                         responseFuture.getCause()));
               } else {
                 pullCallback.onException(
                     new MQClientException(
-                        "unknown reason. addr: "
+                        "unknown reason. addr:"
                             + addr
-                            + ", timeoutMillis: "
+                            + ", timeoutMillis:"
                             + timeoutMillis
-                            + ". Request: "
+                            + ". Request:"
                             + request,
                         responseFuture.getCause()));
               }

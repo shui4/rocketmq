@@ -98,7 +98,7 @@ public interface MessageStore {
    *
    * @param group 消费组名称
    * @param topic 主题名称
-   * @param queueId 队列ID
+   * @param queueId 队列 ID
    * @param offset 待拉取偏移量
    * @param maxMsgNums 最大拉取消息条数
    * @param messageFilter 消息过滤器

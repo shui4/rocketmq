@@ -144,16 +144,16 @@ public class PullAPIWrapper {
    *
    * @param mq 从哪个消息消费队列拉取消息
    * @param subExpression 消息过滤表达式
-   * @param expressionType 消息表达式类型，分为TAG、 SQL92
+   * @param expressionType 消息表达式类型，分为 TAG、 SQL92
    * @param subVersion ignore
    * @param offset 消息拉取偏移量
-   * @param maxNums 本次拉取最大消息条数，默认32条
+   * @param maxNums 本次拉取最大消息条数，默认 32 条
    * @param sysFlag 拉取系统标记
-   * @param commitOffset 当前MessageQueue的消费进度（内存中）
+   * @param commitOffset 当前 MessageQueue 的消费进度（内存中）
    * @param brokerSuspendMaxTimeMillis 消息拉取过程中允许 Broker 挂起的时间，默认 15s
    * @param timeoutMillis 消息拉取超时时间
    * @param communicationMode 消息拉取模式，默认为异步拉取
-   * @param pullCallback 从Broker拉取到消息后的回调方法
+   * @param pullCallback 从 Broker 拉取到消息后的回调方法
    * @return {@link PullResult}
    * @throws MQClientException ignore
    * @throws RemotingException ignore
@@ -174,8 +174,8 @@ public class PullAPIWrapper {
       final CommunicationMode communicationMode,
       final PullCallback pullCallback)
       throws MQClientException, RemotingException, MQBrokerException, InterruptedException {
-    // 根据brokerName、BrokerId从MQClientInstance中获取 Broker地址，在整个RocketMQ
-    // Broker的部署结构中，相同名称的Broker构成主从结构，其BrokerId会不一样，在每次拉取消息后，给出一个建议，下次是从主节点还是从节点拉取
+    // 根据 brokerName、BrokerId 从 MQClientInstance 中获取 Broker 地址，在整个 RocketMQ
+    // Broker 的部署结构中，相同名称的 Broker 构成主从结构，其 BrokerId 会不一样，在每次拉取消息后，给出一个建议，下次是从主节点还是从节点拉取
     FindBrokerResult findBrokerResult =
         this.mQClientFactory.findBrokerAddressInSubscribe(
             mq.getBrokerName(), this.recalculatePullFromWhichNode(mq), false);
@@ -194,9 +194,9 @@ public class PullAPIWrapper {
           throw new MQClientException(
               "The broker["
                   + mq.getBrokerName()
-                  + ", "
+                  + ","
                   + findBrokerResult.getBrokerVersion()
-                  + "] does not upgrade to support for filter message by "
+                  + "] does not upgrade to support for filter message by"
                   + expressionType,
               null);
         }
@@ -227,7 +227,7 @@ public class PullAPIWrapper {
       if (PullSysFlag.hasClassFilterFlag(sysFlagInner)) {
         brokerAddr = computePullFromWhichFilterServer(mq.getTopic(), brokerAddr);
       }
-      // 异步向 Broker 拉取消息 RequestCode.PULL_MESSAGE
+      // 异步向 Broker 拉取消息 RequestCode#PULL_MESSAGE
       PullResult pullResult =
           this.mQClientFactory
               .getMQClientAPIImpl()
@@ -267,7 +267,7 @@ public class PullAPIWrapper {
     }
 
     throw new MQClientException(
-        "Find Filter Server Failed, Broker Addr: " + brokerAddr + " topic: " + topic, null);
+        "Find Filter Server Failed, Broker Addr:" + brokerAddr + "topic:" + topic, null);
   }
 
   public boolean isConnectBrokerByUser() {
