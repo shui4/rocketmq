@@ -285,7 +285,7 @@ public class DefaultMQPullConsumerImpl implements MQConsumerInner {
       return;
     }
 
-    // If namespace not null , reset Topic without namespace.
+    // 如果命名空间不为 null，则重置不带命名空间的主题。
     for (MessageExt messageExt : msgList) {
       if (null != this.getDefaultMQPullConsumer().getNamespace()) {
         messageExt.setTopic(

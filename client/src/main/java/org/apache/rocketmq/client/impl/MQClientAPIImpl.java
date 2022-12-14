@@ -872,7 +872,7 @@ public class MQClientAPIImpl {
         assert false;
         return null;
       case ASYNC:
-        // 异步
+        // 异步（默认）
         this.pullMessageAsync(addr, request, timeoutMillis, pullCallback);
         return null;
       case SYNC:

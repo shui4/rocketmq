@@ -484,19 +484,15 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                   }
 
                   break;
-                  // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL 、
-                  // GetMessageResult.OFFSET_OVERFLOW_ONE
-
+                  // 没有新消息，对应 GetMessageResult.OFFSET_FOUND_NULL
                   // OFFSET_FOUND_NULL 表示根据 ConsumeQueue 文件的偏移量没有找到
                   // 内容，使用偏移量定位到下一个 ConsumeQueue 文件，其实就是 offset
                   // + （一个 ConsumeQueue 文件包含多少个条目 =MappedFileSize / 20 ）
-
-                  // OFFSET_OVERFLOW_ONE 表示待拉取消息的物理偏移量等于消息队列
-                  // 最大的偏移量，如果有新的消息到达，此时会创建一个新的
-                  // ConsumeQueue 文件，因为上一个 ConsueQueue 文件的最大偏移量就是下
-                  // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
                 case NO_NEW_MSG:
-                  // 没有匹配消息
+                  // 没有匹配消息，对应 GetMessageResult.OFFSET_OVERFLOW_ONE
+                  // OFFSET_OVERFLOW_ONE 表示待拉取消息的物理偏移量等于消息队列最大的偏移量，如果有新的消息到达，此时会创建一个新的 ConsumeQueue
+                  // 文件，因为上一个 ConsueQueue 文件的最大偏移量就是下
+                  // 一个文件的起始偏移量，所以可以按照该物理偏移量第二次拉取消息
                 case NO_MATCHED_MSG:
                   pullRequest.setNextOffset(pullResult.getNextBeginOffset());
                   // 则直接使用服务器端校正的偏移量进行下一次消息的拉取
@@ -627,6 +623,12 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     }
   }
 
+  /**
+   * 稍候执行
+   *
+   * @param pullRequest ignore
+   * @param timeDelay 延迟时间
+   */
   private void executePullRequestLater(final PullRequest pullRequest, final long timeDelay) {
     this.mQClientFactory.getPullMessageService().executePullRequestLater(pullRequest, timeDelay);
   }
