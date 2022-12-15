@@ -2960,7 +2960,7 @@ public class DefaultMessageStore implements MessageStore {
       // ? reputFromOffset<CommitLog 的最大写入偏移量
       for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
         // 代码清单 4-48
-        // ? 重复启用 并且 reputFromOffset>= 确认偏移量
+        // ? 重复启用 && reputFromOffset>= 确认偏移量
         // * 跳出循环
         if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
             && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {

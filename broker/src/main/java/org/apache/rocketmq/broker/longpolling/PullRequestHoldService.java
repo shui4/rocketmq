@@ -43,9 +43,16 @@ public class PullRequestHoldService extends ServiceThread {
     this.brokerController = brokerController;
   }
 
+  /**
+   * 挂起拉请求
+   *
+   * @param topic 主题
+   * @param queueId 队列 id
+   * @param pullRequest ignore
+   */
   public void suspendPullRequest(
       final String topic, final int queueId, final PullRequest pullRequest) {
-    // 根据消息主题与消息队列构建key
+    // 根据消息主题与消息队列构建 key
     String key = this.buildKey(topic, queueId);
     // 从 pullRequestTable 中获取该主
     // 题队列对应的 ManyPullRequest ，通过 ConcurrentMap 的并发特性，维
@@ -78,11 +85,12 @@ public class PullRequestHoldService extends ServiceThread {
     while (!this.isStopped()) {
       try {
 
+        // 如果开启长轮询，每 5s 判断一次新消息是否到达
         if (this.brokerController.getBrokerConfig().isLongPollingEnable()) {
           this.waitForRunning(5 * 1000);
         }
-        // 如果开启长轮询，每5s判断一次新消息是否到达。如果未开启长 轮询，则默认等待1s再次判断，可以通过
-        // BrokerConfig#shortPollingTimeMills改变等待时间
+        // 如果未开启长 轮询，则默认等待 1s 再次判断
+        // 可以通过 BrokerConfig#shortPollingTimeMills 改变等待时间
         else {
           this.waitForRunning(this.brokerController.getBrokerConfig().getShortPollingTimeMills());
         }
@@ -94,7 +102,7 @@ public class PullRequestHoldService extends ServiceThread {
           log.info("[NOTIFYME] check hold request cost {} ms.", costTime);
         }
       } catch (Throwable e) {
-        log.warn(this.getServiceName() + " service has exception. ", e);
+        log.warn(this.getServiceName() + "service has exception.", e);
       }
     }
 
@@ -107,7 +115,8 @@ public class PullRequestHoldService extends ServiceThread {
   }
 
   protected void checkHoldRequest() {
-    // 遍历拉取任务表，根据主题与队列获取消息消费队列的最大偏移 量，如果该偏移量大于待拉取偏移量，说明有新的消息到达，调用 notifyMessageArriving 触发消息拉取
+    // 遍历拉取任务表，根据主题与队列获取消息消费队列的最大偏移量，
+    // 如果该偏移量大于待拉取偏移量，说明有新的消息到达，调用 notifyMessageArriving 触发消息拉取
     for (String key : this.pullRequestTable.keySet()) {
       String[] kArray = key.split(TOPIC_QUEUEID_SEPARATOR);
       if (2 == kArray.length) {
@@ -152,7 +161,7 @@ public class PullRequestHoldService extends ServiceThread {
             newestOffset =
                 this.brokerController.getMessageStore().getMaxOffsetInQueue(topic, queueId);
           }
-          // 如果消息队列的最大偏移量大于待拉取偏移量，且消息匹配，则调用 execute Request WhenWakeup 将消息返回给消息拉取客户端，否则等待下一次尝试
+          // 如果消息队列的最大偏移量大于待拉取偏移量，且消息匹配，则调用 executeRequestWhenWakeup 将消息返回给消息拉取客户端，否则等待下一次尝试
           if (newestOffset > request.getPullFromThisOffset()) {
             boolean match =
                 request
