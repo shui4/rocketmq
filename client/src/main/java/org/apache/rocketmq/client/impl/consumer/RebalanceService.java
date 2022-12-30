@@ -22,31 +22,30 @@ import org.apache.rocketmq.common.ServiceThread;
 import org.apache.rocketmq.logging.InternalLogger;
 
 public class RebalanceService extends ServiceThread {
-    private static long waitInterval =
-        Long.parseLong(System.getProperty(
-            "rocketmq.client.rebalance.waitInterval", "20000"));
-    private final InternalLogger log = ClientLogger.getLog();
-    private final MQClientInstance mqClientFactory;
+  private static long waitInterval =
+      Long.parseLong(System.getProperty("rocketmq.client.rebalance.waitInterval", "20000"));
+  private final InternalLogger log = ClientLogger.getLog();
+  private final MQClientInstance mqClientFactory;
 
-    public RebalanceService(MQClientInstance mqClientFactory) {
-        this.mqClientFactory = mqClientFactory;
+  public RebalanceService(MQClientInstance mqClientFactory) {
+    this.mqClientFactory = mqClientFactory;
+  }
+
+  @Override
+  public void run() {
+    log.info(this.getServiceName() + "service started");
+
+    while (!this.isStopped()) {
+      // 默认 隔 20 秒
+      this.waitForRunning(waitInterval);
+      this.mqClientFactory.doRebalance();
     }
 
-    @Override
-    public void run() {
-        log.info(this.getServiceName() + " service started");
+    log.info(this.getServiceName() + "service end");
+  }
 
-        while (!this.isStopped()) {
-            // 隔 20 秒
-            this.waitForRunning(waitInterval);
-            this.mqClientFactory.doRebalance();
-        }
-
-        log.info(this.getServiceName() + " service end");
-    }
-
-    @Override
-    public String getServiceName() {
-        return RebalanceService.class.getSimpleName();
-    }
+  @Override
+  public String getServiceName() {
+    return RebalanceService.class.getSimpleName();
+  }
 }
