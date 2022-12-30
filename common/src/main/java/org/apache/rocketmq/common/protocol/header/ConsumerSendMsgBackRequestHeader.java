@@ -27,15 +27,18 @@ public class ConsumerSendMsgBackRequestHeader implements CommandCustomHeader {
   @CFNotNull private Long offset;
   /** 消息组名 */
   @CFNotNull private String group;
-  /** 延迟级别 */
+  /**
+   * 延迟级别。RcketMQ 不支持精确的定时消息调 度，而是提供几个延时级别， MessageStoreConfig#messageDelayLevel = "1s 5s 10s 30s 1m
+   * 2m 3m 4m 5m 6m 7m 8m 9m 10m 20m 30m 1h 2h"，delayLevel=1，表示延 迟 5s，delayLevel=2，表示延迟 10s。
+   */
   @CFNotNull private Integer delayLevel;
-  /** 消息ID */
+  /** 消息 ID */
   private String originMsgId;
   /** 消息主题 */
   private String originTopic;
 
   @CFNullable private boolean unitMode = false;
-  /** 最大重新消费此处，默认16次 */
+  /** 最大重新消费次数，默认 16 次 */
   private Integer maxReconsumeTimes;
 
   @Override

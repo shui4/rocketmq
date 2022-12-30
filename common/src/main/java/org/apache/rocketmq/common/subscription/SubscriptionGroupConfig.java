@@ -21,152 +21,168 @@ import org.apache.rocketmq.common.MixAll;
 
 public class SubscriptionGroupConfig {
 
-    private String groupName;
+  /** 消费组名 */
+  private String groupName;
 
-    private boolean consumeEnable = true;
-    private boolean consumeFromMinEnable = true;
+  /** 是否可以消费，默认为 true，如果 consumeEnable=false，该消费组无法拉取消息，因而无法消费消息 */
+  private boolean consumeEnable = true;
 
-    private boolean consumeBroadcastEnable = true;
+  /** 是否允许从队列最小偏移量开始消 费，默认为 true，目前未使用该参数 */
+  private boolean consumeFromMinEnable = true;
 
-    private int retryQueueNums = 1;
+  /** 设置该消费组是否能以广播模式消 费，默认为 true，如果设置为 false，表示只能以集群模式消费 */
+  private boolean consumeBroadcastEnable = true;
 
-    private int retryMaxTimes = 16;
+  /** 重试队列个数，默认为 1，每一个 Broker 上 有一个重试队列 */
+  private int retryQueueNums = 1;
 
-    private long brokerId = MixAll.MASTER_ID;
+  /** 消息最大重试次数，默认 16 次 */
+  private int retryMaxTimes = 16;
 
-    private long whichBrokerWhenConsumeSlowly = 1;
+  /** 主节点 ID */
+  private long brokerId = MixAll.MASTER_ID;
 
-    private boolean notifyConsumerIdsChangedEnable = true;
+  /** 如果消息堵塞（主节点）， 将转向该 brokerId 的服务器上拉取消息，默认为 1 */
+  private long whichBrokerWhenConsumeSlowly = 1;
 
-    public String getGroupName() {
-        return groupName;
-    }
+  /**
+   * 当消费发生变化时，是否 立即进行消息队列重新负载。消费组订阅信息配置信息存储在 Broker 的
+   * ${ROCKET_HOME}/store/config/subscriptionGroup.json 中。 BrokerConfig.autoCreateSubscriptionGroup
+   * 默认为 true，表示在第 一次使用消费组配置信息时如果不存在消费组，则使用上述默认值自 动创建一个，如果为 false，则只能通过客户端命令 mqadmin updateSubGroup
+   * 创建消费组后再修改相关参数
+   */
+  private boolean notifyConsumerIdsChangedEnable = true;
 
-    public void setGroupName(String groupName) {
-        this.groupName = groupName;
-    }
+  public String getGroupName() {
+    return groupName;
+  }
 
-    public boolean isConsumeEnable() {
-        return consumeEnable;
-    }
+  public void setGroupName(String groupName) {
+    this.groupName = groupName;
+  }
 
-    public void setConsumeEnable(boolean consumeEnable) {
-        this.consumeEnable = consumeEnable;
-    }
+  public boolean isConsumeEnable() {
+    return consumeEnable;
+  }
 
-    public boolean isConsumeFromMinEnable() {
-        return consumeFromMinEnable;
-    }
+  public void setConsumeEnable(boolean consumeEnable) {
+    this.consumeEnable = consumeEnable;
+  }
 
-    public void setConsumeFromMinEnable(boolean consumeFromMinEnable) {
-        this.consumeFromMinEnable = consumeFromMinEnable;
-    }
+  public boolean isConsumeFromMinEnable() {
+    return consumeFromMinEnable;
+  }
 
-    public boolean isConsumeBroadcastEnable() {
-        return consumeBroadcastEnable;
-    }
+  public void setConsumeFromMinEnable(boolean consumeFromMinEnable) {
+    this.consumeFromMinEnable = consumeFromMinEnable;
+  }
 
-    public void setConsumeBroadcastEnable(boolean consumeBroadcastEnable) {
-        this.consumeBroadcastEnable = consumeBroadcastEnable;
-    }
+  public boolean isConsumeBroadcastEnable() {
+    return consumeBroadcastEnable;
+  }
 
-    public int getRetryQueueNums() {
-        return retryQueueNums;
-    }
+  public void setConsumeBroadcastEnable(boolean consumeBroadcastEnable) {
+    this.consumeBroadcastEnable = consumeBroadcastEnable;
+  }
 
-    public void setRetryQueueNums(int retryQueueNums) {
-        this.retryQueueNums = retryQueueNums;
-    }
+  public int getRetryQueueNums() {
+    return retryQueueNums;
+  }
 
-    public int getRetryMaxTimes() {
-        return retryMaxTimes;
-    }
+  public void setRetryQueueNums(int retryQueueNums) {
+    this.retryQueueNums = retryQueueNums;
+  }
 
-    public void setRetryMaxTimes(int retryMaxTimes) {
-        this.retryMaxTimes = retryMaxTimes;
-    }
+  public int getRetryMaxTimes() {
+    return retryMaxTimes;
+  }
 
-    public long getBrokerId() {
-        return brokerId;
-    }
+  public void setRetryMaxTimes(int retryMaxTimes) {
+    this.retryMaxTimes = retryMaxTimes;
+  }
 
-    public void setBrokerId(long brokerId) {
-        this.brokerId = brokerId;
-    }
+  public long getBrokerId() {
+    return brokerId;
+  }
 
-    public long getWhichBrokerWhenConsumeSlowly() {
-        return whichBrokerWhenConsumeSlowly;
-    }
+  public void setBrokerId(long brokerId) {
+    this.brokerId = brokerId;
+  }
 
-    public void setWhichBrokerWhenConsumeSlowly(long whichBrokerWhenConsumeSlowly) {
-        this.whichBrokerWhenConsumeSlowly = whichBrokerWhenConsumeSlowly;
-    }
+  public long getWhichBrokerWhenConsumeSlowly() {
+    return whichBrokerWhenConsumeSlowly;
+  }
 
-    public boolean isNotifyConsumerIdsChangedEnable() {
-        return notifyConsumerIdsChangedEnable;
-    }
+  public void setWhichBrokerWhenConsumeSlowly(long whichBrokerWhenConsumeSlowly) {
+    this.whichBrokerWhenConsumeSlowly = whichBrokerWhenConsumeSlowly;
+  }
 
-    public void setNotifyConsumerIdsChangedEnable(final boolean notifyConsumerIdsChangedEnable) {
-        this.notifyConsumerIdsChangedEnable = notifyConsumerIdsChangedEnable;
-    }
+  public boolean isNotifyConsumerIdsChangedEnable() {
+    return notifyConsumerIdsChangedEnable;
+  }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (int) (brokerId ^ (brokerId >>> 32));
-        result = prime * result + (consumeBroadcastEnable ? 1231 : 1237);
-        result = prime * result + (consumeEnable ? 1231 : 1237);
-        result = prime * result + (consumeFromMinEnable ? 1231 : 1237);
-        result = prime * result + (notifyConsumerIdsChangedEnable ? 1231 : 1237);
-        result = prime * result + ((groupName == null) ? 0 : groupName.hashCode());
-        result = prime * result + retryMaxTimes;
-        result = prime * result + retryQueueNums;
-        result =
-            prime * result + (int) (whichBrokerWhenConsumeSlowly ^ (whichBrokerWhenConsumeSlowly >>> 32));
-        return result;
-    }
+  public void setNotifyConsumerIdsChangedEnable(final boolean notifyConsumerIdsChangedEnable) {
+    this.notifyConsumerIdsChangedEnable = notifyConsumerIdsChangedEnable;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        SubscriptionGroupConfig other = (SubscriptionGroupConfig) obj;
-        if (brokerId != other.brokerId)
-            return false;
-        if (consumeBroadcastEnable != other.consumeBroadcastEnable)
-            return false;
-        if (consumeEnable != other.consumeEnable)
-            return false;
-        if (consumeFromMinEnable != other.consumeFromMinEnable)
-            return false;
-        if (groupName == null) {
-            if (other.groupName != null)
-                return false;
-        } else if (!groupName.equals(other.groupName))
-            return false;
-        if (retryMaxTimes != other.retryMaxTimes)
-            return false;
-        if (retryQueueNums != other.retryQueueNums)
-            return false;
-        if (whichBrokerWhenConsumeSlowly != other.whichBrokerWhenConsumeSlowly)
-            return false;
-        if (notifyConsumerIdsChangedEnable != other.notifyConsumerIdsChangedEnable)
-            return false;
-        return true;
-    }
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + (int) (brokerId ^ (brokerId >>> 32));
+    result = prime * result + (consumeBroadcastEnable ? 1231 : 1237);
+    result = prime * result + (consumeEnable ? 1231 : 1237);
+    result = prime * result + (consumeFromMinEnable ? 1231 : 1237);
+    result = prime * result + (notifyConsumerIdsChangedEnable ? 1231 : 1237);
+    result = prime * result + ((groupName == null) ? 0 : groupName.hashCode());
+    result = prime * result + retryMaxTimes;
+    result = prime * result + retryQueueNums;
+    result =
+        prime * result
+            + (int) (whichBrokerWhenConsumeSlowly ^ (whichBrokerWhenConsumeSlowly >>> 32));
+    return result;
+  }
 
-    @Override
-    public String toString() {
-        return "SubscriptionGroupConfig [groupName=" + groupName + ", consumeEnable=" + consumeEnable
-            + ", consumeFromMinEnable=" + consumeFromMinEnable + ", consumeBroadcastEnable="
-            + consumeBroadcastEnable + ", retryQueueNums=" + retryQueueNums + ", retryMaxTimes="
-            + retryMaxTimes + ", brokerId=" + brokerId + ", whichBrokerWhenConsumeSlowly="
-            + whichBrokerWhenConsumeSlowly + ", notifyConsumerIdsChangedEnable="
-            + notifyConsumerIdsChangedEnable + "]";
-    }
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
+    SubscriptionGroupConfig other = (SubscriptionGroupConfig) obj;
+    if (brokerId != other.brokerId) return false;
+    if (consumeBroadcastEnable != other.consumeBroadcastEnable) return false;
+    if (consumeEnable != other.consumeEnable) return false;
+    if (consumeFromMinEnable != other.consumeFromMinEnable) return false;
+    if (groupName == null) {
+      if (other.groupName != null) return false;
+    } else if (!groupName.equals(other.groupName)) return false;
+    if (retryMaxTimes != other.retryMaxTimes) return false;
+    if (retryQueueNums != other.retryQueueNums) return false;
+    if (whichBrokerWhenConsumeSlowly != other.whichBrokerWhenConsumeSlowly) return false;
+    if (notifyConsumerIdsChangedEnable != other.notifyConsumerIdsChangedEnable) return false;
+    return true;
+  }
+
+  @Override
+  public String toString() {
+    return "SubscriptionGroupConfig [groupName="
+        + groupName
+        + ", consumeEnable="
+        + consumeEnable
+        + ", consumeFromMinEnable="
+        + consumeFromMinEnable
+        + ", consumeBroadcastEnable="
+        + consumeBroadcastEnable
+        + ", retryQueueNums="
+        + retryQueueNums
+        + ", retryMaxTimes="
+        + retryMaxTimes
+        + ", brokerId="
+        + brokerId
+        + ", whichBrokerWhenConsumeSlowly="
+        + whichBrokerWhenConsumeSlowly
+        + ", notifyConsumerIdsChangedEnable="
+        + notifyConsumerIdsChangedEnable
+        + "]";
+  }
 }
