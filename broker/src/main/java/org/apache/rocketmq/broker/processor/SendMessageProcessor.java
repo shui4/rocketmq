@@ -78,7 +78,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     try {
       response = asyncProcessRequest(ctx, request).get();
     } catch (InterruptedException | ExecutionException e) {
-      log.error("process SendMessage error, request : " + request.toString(), e);
+      log.error("process SendMessage error, request :" + request.toString(), e);
     }
     return response;
   }
@@ -139,7 +139,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     if (null == subscriptionGroupConfig) {
       response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
       response.setRemark(
-          "subscription group not exist, "
+          "subscription group not exist,"
               + requestHeader.getGroup()
               + " "
               + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
@@ -187,11 +187,12 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       response.setRemark(String.format("the topic[%s] sending message is forbidden", newTopic));
       return CompletableFuture.completedFuture(response);
     }
+    // 根据消息物理偏移量从 CommitLog 文件中获取消息，同时将消息的主题存入属性
     MessageExt msgExt =
         this.brokerController.getMessageStore().lookMessageByOffset(requestHeader.getOffset());
     if (null == msgExt) {
       response.setCode(ResponseCode.SYSTEM_ERROR);
-      response.setRemark("look message by offset failed, " + requestHeader.getOffset());
+      response.setRemark("look message by offset failed," + requestHeader.getOffset());
       return CompletableFuture.completedFuture(response);
     }
 
@@ -202,7 +203,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     msgExt.setWaitStoreMsgOK(false);
 
     int delayLevel = requestHeader.getDelayLevel();
-
+    // 设置消息重试次数，如果消息重试次数已超过 maxReconsumeTimes，再次改变 newTopic 主题为 DLQ（"%DLQ%"），
+    // 该主题的权限为只写，说明消息一旦进入 DLQ 队列，
+    // RocketMQ 将不负责再次调度消费了，需要人工干预
     int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
     if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()) {
       Integer times = requestHeader.getMaxReconsumeTimes();
@@ -233,7 +236,10 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       }
       msgExt.setDelayTimeLevel(delayLevel);
     }
-
+    // 根据原先的消息创建一个新的消息对象，重试消息会拥
+    // 有一个唯一消息 ID（msgId）并存入 CommitLog 文件。这里不会更新原
+    // 先的消息，而是会将原先的主题、消息 ID 存入消息属性，主题名称为
+    // 重试主题，其他属性与原消息保持一致
     MessageExtBrokerInner msgInner = new MessageExtBrokerInner();
     msgInner.setTopic(newTopic);
     msgInner.setBody(msgExt.getBody());
@@ -251,9 +257,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
 
     String originMsgId = MessageAccessor.getOriginMessageId(msgExt);
     MessageAccessor.setOriginMessageId(
-        msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId() : originMsgId);
+        msgInner, UtilAll.isBlank(originMsgId) ? msgExt.getMsgId(): originMsgId);
     msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgExt.getProperties()));
-
+    // 将消息存入 CommitLog 文件
     CompletableFuture<PutMessageResult> putMessageResult =
         this.brokerController.getMessageStore().asyncPutMessage(msgInner);
     return putMessageResult.thenApply(
@@ -343,7 +349,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     msgInner.setBornHost(ctx.channel().remoteAddress());
     msgInner.setStoreHost(this.getStoreHost());
     msgInner.setReconsumeTimes(
-        requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+        requestHeader.getReconsumeTimes()== null ? 0 : requestHeader.getReconsumeTimes());
     String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
     MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
     if (origProps.containsKey(MessageConst.PROPERTY_WAIT_STORE_MSG_OK)) {
@@ -425,7 +431,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       if (null == subscriptionGroupConfig) {
         response.setCode(ResponseCode.SUBSCRIPTION_GROUP_NOT_EXIST);
         response.setRemark(
-            "subscription group not exist, "
+            "subscription group not exist,"
                 + groupName
                 + " "
                 + FAQUrl.suggestTodo(FAQUrl.SUBSCRIPTION_GROUP_NOT_EXIST));
@@ -434,11 +440,11 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
 
       int maxReconsumeTimes = subscriptionGroupConfig.getRetryMaxTimes();
       if (request.getVersion() >= MQVersion.Version.V3_4_9.ordinal()
-          && requestHeader.getMaxReconsumeTimes() != null) {
+          && requestHeader.getMaxReconsumeTimes()!= null) {
         maxReconsumeTimes = requestHeader.getMaxReconsumeTimes();
       }
       int reconsumeTimes =
-          requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes();
+          requestHeader.getReconsumeTimes()== null ? 0 : requestHeader.getReconsumeTimes();
       if (reconsumeTimes >= maxReconsumeTimes) {
         newTopic = MixAll.getDLQTopic(groupName);
         int queueIdInt = ThreadLocalRandom.current().nextInt(99999999) % DLQ_NUMS_PER_GROUP;
@@ -465,10 +471,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     return true;
   }
 
-  /**
-   * 入口方法
-   *
-   */
+  /** 入口方法 */
   private RemotingCommand sendMessage(
       final ChannelHandlerContext ctx,
       final RemotingCommand request,
@@ -493,7 +496,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
 
     final long startTimstamp =
         this.brokerController.getBrokerConfig().getStartAcceptSendRequestTimeStamp();
-    if (this.brokerController.getMessageStore().now() < startTimstamp) {
+    if (this.brokerController.getMessageStore().now()< startTimstamp) {
       response.setCode(ResponseCode.SYSTEM_ERROR);
       response.setRemark(
           String.format(
@@ -534,7 +537,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     msgInner.setBornHost(ctx.channel().remoteAddress());
     msgInner.setStoreHost(this.getStoreHost());
     msgInner.setReconsumeTimes(
-        requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+        requestHeader.getReconsumeTimes()== null ? 0 : requestHeader.getReconsumeTimes());
     String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
     MessageAccessor.putProperty(msgInner, MessageConst.PROPERTY_CLUSTER, clusterName);
     msgInner.setPropertiesString(MessageDecoder.messageProperties2String(msgInner.getProperties()));
@@ -545,7 +548,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     if (traFlag != null
         && Boolean.parseBoolean(traFlag)
         && !(msgInner.getReconsumeTimes() > 0
-            && msgInner.getDelayTimeLevel() > 0)) { // For client under version 4.6.1
+            && msgInner.getDelayTimeLevel()> 0)) { // For client under version 4.6.1
       if (this.brokerController.getBrokerConfig().isRejectTransactionMessage()) {
         response.setCode(ResponseCode.NO_PERMISSION);
         response.setRemark(
@@ -620,7 +623,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       case SERVICE_NOT_AVAILABLE:
         response.setCode(ResponseCode.SERVICE_NOT_AVAILABLE);
         response.setRemark(
-            "service not available now. It may be caused by one of the following reasons: "
+            "service not available now. It may be caused by one of the following reasons:"
                 + "the broker's disk is full ["
                 + diskUtil()
                 + "], messages are put to the slave, message store has been shut down, etc.");
@@ -734,9 +737,9 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
       queueIdInt = randomQueueId(topicConfig.getWriteQueueNums());
     }
 
-    if (requestHeader.getTopic().length() > Byte.MAX_VALUE) {
+    if (requestHeader.getTopic().length()> Byte.MAX_VALUE) {
       response.setCode(ResponseCode.MESSAGE_ILLEGAL);
-      response.setRemark("message topic length too long " + requestHeader.getTopic().length());
+      response.setRemark("message topic length too long" + requestHeader.getTopic().length());
       return CompletableFuture.completedFuture(response);
     }
 
@@ -758,7 +761,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     messageExtBatch.setBornHost(ctx.channel().remoteAddress());
     messageExtBatch.setStoreHost(this.getStoreHost());
     messageExtBatch.setReconsumeTimes(
-        requestHeader.getReconsumeTimes() == null ? 0 : requestHeader.getReconsumeTimes());
+        requestHeader.getReconsumeTimes()== null ? 0 : requestHeader.getReconsumeTimes());
     String clusterName = this.brokerController.getBrokerConfig().getBrokerClusterName();
     MessageAccessor.putProperty(messageExtBatch, MessageConst.PROPERTY_CLUSTER, clusterName);
 
@@ -862,7 +865,7 @@ public class SendMessageProcessor extends AbstractSendMessageProcessor
     final long startTimestamp =
         this.brokerController.getBrokerConfig().getStartAcceptSendRequestTimeStamp();
 
-    if (this.brokerController.getMessageStore().now() < startTimestamp) {
+    if (this.brokerController.getMessageStore().now()< startTimestamp) {
       response.setCode(ResponseCode.SYSTEM_ERROR);
       response.setRemark(
           String.format(
