@@ -36,9 +36,7 @@ import org.apache.rocketmq.common.protocol.header.QueryConsumerOffsetRequestHead
 import org.apache.rocketmq.common.protocol.header.UpdateConsumerOffsetRequestHeader;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
-/**
- * Remote storage implementation
- */
+/** 集群模式消息进度存储文件存放在消息服务端。消息消费进度集群模式实现类 */
 public class RemoteBrokerOffsetStore implements OffsetStore {
     private final static InternalLogger log = ClientLogger.getLog();
     private final MQClientInstance mQClientFactory;
@@ -99,7 +97,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                     }
                     //Other exceptions
                     catch (Exception e) {
-                        log.warn("fetchConsumeOffsetFromBroker exception, " + mq, e);
+                        log.warn("fetchConsumeOffsetFromBroker exception," + mq, e);
                         return -2;
                     }
                 }
@@ -131,7 +129,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                             mq,
                             offset.get());
                     } catch (Exception e) {
-                        log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
+                        log.error("updateConsumeOffsetToBroker exception," + mq.toString(), e);
                     }
                 } else {
                     unusedMQ.add(mq);
@@ -159,7 +157,7 @@ public class RemoteBrokerOffsetStore implements OffsetStore {
                     mq,
                     offset.get());
             } catch (Exception e) {
-                log.error("updateConsumeOffsetToBroker exception, " + mq.toString(), e);
+                log.error("updateConsumeOffsetToBroker exception," + mq.toString(), e);
             }
         }
     }

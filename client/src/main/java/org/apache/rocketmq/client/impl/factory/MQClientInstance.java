@@ -61,8 +61,9 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 客户端各种类型的Consumer和Producer嗯底层类<br>
- * 这个类首先从NameServer获取并保存各种配置信息，比如Topic的Route信息。同时它还会通过MQClientInstanceImpl类实现消息的收发，也就是从Broker获取消息或者发送消息到Broker
+ * 客户端各种类型的 Consumer 和 Producer 嗯底层类 <br>
+ * 这个类首先从 NameServer 获取并保存各种配置信息，比如 Topic 的 Route 信息。同时它还会通过 MQClientInstanceImpl 类实现消息的收发，也就是从
+ * Broker 获取消息或者发送消息到 Broker
  */
 public class MQClientInstance {
   private static final long LOCK_TIMEOUT_MILLIS = 3000;
@@ -103,7 +104,7 @@ public class MQClientInstance {
             }
           });
   private final AtomicLong sendHeartbeatTimesTotal = new AtomicLong(0);
-  // Topic路由信息表
+  // Topic 路由信息表
   private final ConcurrentMap<String /* Topic */, TopicRouteData> topicRouteTable =
       new ConcurrentHashMap<String, TopicRouteData>();
   private Random random = new Random();
@@ -185,10 +186,10 @@ public class MQClientInstance {
               throw (MQClientException) e;
             } else {
               throw new MQClientException(
-                  "Check client in broker error, maybe because you use "
+                  "Check client in broker error, maybe because you use"
                       + subscriptionData.getExpressionType()
-                      + " to filter message, but server has not been upgraded to support!"
-                      + "This error would not affect the launch of consumer, but may has impact on message receiving if you "
+                      + "to filter message, but server has not been upgraded to support!"
+                      + "This error would not affect the launch of consumer, but may has impact on message receiving if you"
                       + "have use the new features which are not supported by server, please check the log!",
                   e);
             }
@@ -337,7 +338,7 @@ public class MQClientInstance {
         return this.mQClientAPIImpl.getConsumerIdListByGroup(
             brokerAddr, group, clientConfig.getMqClientApiTimeout());
       } catch (Exception e) {
-        log.warn("getConsumerIdListByGroup exception, " + brokerAddr + " " + group, e);
+        log.warn("getConsumerIdListByGroup exception," + brokerAddr + " " + group, e);
       }
     }
 
@@ -345,7 +346,7 @@ public class MQClientInstance {
   }
 
   /**
-   * 从namesrv更新主题路由信息
+   * 从 namesrv 更新主题路由信息
    *
    * @param topic ignore
    * @return 更新成功？
@@ -357,12 +358,12 @@ public class MQClientInstance {
   public boolean updateTopicRouteInfoFromNameServer(
       final String topic, boolean isDefault, DefaultMQProducer defaultMQProducer) {
     try {
-      // 上锁，如果没抢到锁，默认等待3秒
+      // 上锁，如果没抢到锁，默认等待 3 秒
       if (this.lockNamesrv.tryLock(LOCK_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS)) {
         try {
-          // 代码清单3-10
+          // 代码清单 3-10
           TopicRouteData topicRouteData;
-          // ? 参数isDefault为true，则使用默认主题查询
+          // ? 参数 isDefault 为 true，则使用默认主题查询
           if (isDefault && defaultMQProducer != null) {
             topicRouteData =
                 this.mQClientAPIImpl.getDefaultTopicRouteInfoFromNameServer(
@@ -378,17 +379,17 @@ public class MQClientInstance {
               }
             }
           }
-          // ? 参数isDefault为false
-          // 则将使用参数topic查询
+          // ? 参数 isDefault 为 false
+          // 则将使用参数 topic 查询
           else {
             topicRouteData =
                 this.mQClientAPIImpl.getTopicRouteInfoFromNameServer(
                     topic, clientConfig.getMqClientApiTimeout());
           }
-          //  ? 从NameServer获取到路由信息，
-          // 存在到缓存中，返回true
+          //  ? 从 NameServer 获取到路由信息，
+          // 存在到缓存中，返回 true
           if (topicRouteData != null) {
-            // 代码清单3-11
+            // 代码清单 3-11
             TopicRouteData old = this.topicRouteTable.get(topic);
             boolean changed = topicRouteDataIsChange(old, topicRouteData);
             if (!changed) {
@@ -407,7 +408,7 @@ public class MQClientInstance {
 
               // Update Pub info
               if (!producerTable.isEmpty()) {
-                // 代码清单3-12 更新MQClientInstance Broker地址缓存表
+                // 代码清单 3-12 更新 MQClientInstance Broker 地址缓存表
                 TopicPublishInfo publishInfo =
                     topicRouteData2TopicPublishInfo(topic, topicRouteData);
                 publishInfo.setHaveTopicRouterInfo(true);
@@ -444,7 +445,7 @@ public class MQClientInstance {
               return true;
             }
           }
-          // 如果未查询到路由信息，则返回false，表示路由信息未变化
+          // 如果未查询到路由信息，则返回 false，表示路由信息未变化
           else {
             log.warn(
                 "updateTopicRouteInfoFromNameServer, getTopicRouteInfoFromNameServer return null, Topic: {}. [{}]",
@@ -452,7 +453,7 @@ public class MQClientInstance {
                 this.clientId);
           }
         }
-        // Topic从Nameserver中没有找到，即ResponseCode.TOPIC_NOT_EXIST
+        // Topic 从 Nameserver 中没有找到，即 ResponseCode.TOPIC_NOT_EXIST
         catch (MQClientException e) {
           if (!topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX)
               && !topic.equals(TopicValidator.AUTO_CREATE_TOPIC_KEY_TOPIC)) {
@@ -467,7 +468,7 @@ public class MQClientInstance {
           this.lockNamesrv.unlock();
         }
       }
-      // 等待3秒，获取锁失败
+      // 等待 3 秒，获取锁失败
       else {
         log.warn(
             "updateTopicRouteInfoFromNameServer tryLock timeout {}ms. [{}]",
@@ -477,7 +478,7 @@ public class MQClientInstance {
     } catch (InterruptedException e) {
       log.warn("updateTopicRouteInfoFromNameServer Exception", e);
     }
-    // 等待3秒还没获取到、或者捕获到相关异常
+    // 等待 3 秒还没获取到、或者捕获到相关异常
     return false;
   }
 
@@ -536,7 +537,7 @@ public class MQClientInstance {
 
       info.setOrderTopic(true);
     } else {
-      // 代码清单3-13  将topicRouteData中的List<QueueData>转换成topicPublishInfo的List<MessageQueue>列表
+      // 代码清单 3-13  将 topicRouteData 中的 List<QueueData> 转换成 topicPublishInfo 的 List<MessageQueue> 列表
       List<QueueData> qds = route.getQueueDatas();
       Collections.sort(qds);
       for (QueueData qd : qds) {
@@ -811,7 +812,7 @@ public class MQClientInstance {
           if (null == this.clientConfig.getNamesrvAddr()) {
             this.mQClientAPIImpl.fetchNameServerAddr();
           }
-          // 启动请求-响应通道（Netty相关）
+          // 启动请求 - 响应通道（Netty 相关）
           this.mQClientAPIImpl.start();
           // 启动各种计划任务
           this.startScheduledTask();
@@ -836,14 +837,14 @@ public class MQClientInstance {
   }
 
   private void startScheduledTask() {
-    // 如果Producer未设置NameServer Address，则 执行 获取名称服务器地址
+    // 如果 Producer 未设置 NameServer Address，则 执行 获取名称服务器地址
     if (null == this.clientConfig.getNamesrvAddr()) {
       this.scheduledExecutorService.scheduleAtFixedRate(
           new Runnable() {
             @Override
             public void run() {
               try {
-                // 这是付费版本RocketMQ的一个功能，这样可以做到线上扩容NameServer
+                // 这是付费版本 RocketMQ 的一个功能，这样可以做到线上扩容 NameServer
                 MQClientInstance.this.mQClientAPIImpl.fetchNameServerAddr();
               } catch (Exception e) {
                 log.error("ScheduledTask fetchNameServerAddr exception", e);
@@ -854,7 +855,7 @@ public class MQClientInstance {
           1000 * 60 * 2,
           TimeUnit.MILLISECONDS);
     }
-    // 每30秒从NameServer中获取最新的Topic路由信息
+    // 每 30 秒从 NameServer 中获取最新的 Topic 路由信息
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -870,7 +871,7 @@ public class MQClientInstance {
         10,
         this.clientConfig.getPollNameServerInterval(),
         TimeUnit.MILLISECONDS);
-    // 定时任务默认30秒 清理离线的Broker、然后再向所有Broker发送心跳
+    // 定时任务默认 30 秒 清理离线的 Broker、然后再向所有 Broker 发送心跳
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
