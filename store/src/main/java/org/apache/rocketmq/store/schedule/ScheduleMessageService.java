@@ -501,14 +501,15 @@ public class ScheduleMessageService extends ConfigManager {
             this.scheduleNextTimerTask(nextOffset, DELAY_FOR_A_WHILE);
             return;
           }
-          // 根据消息物理偏移量与消息大小从 CommitLog 文件中查找 消息。如果未找到消息，则打印错误日志，根据延迟时间创建下一个定时器
+          // 根据消息物理偏移量与消息大小从 CommitLog 文件中查找 消息。
+          // 如果未找到消息，则打印错误日志，根据延迟时间创建下一个定时器
           MessageExt msgExt =
               ScheduleMessageService.this.defaultMessageStore.lookMessageByOffset(offsetPy, sizePy);
           if (msgExt == null) {
             continue;
           }
-          // 根据消息属性重新构建新的消息对象，清除消息的延迟 级别属性（delayLevel），恢复消息原先的消息主题与消息消费队 列，消息的消费次数 reconsumeTimes
-          // 并不会丢失
+          // 根据消息属性重新构建新的消息对象，清除消息的延迟 级别属性（delayLevel），
+          // 恢复消息原先的消息主题与消息消费队 列，消息的消费次数 reconsumeTimes 并不会丢失
           MessageExtBrokerInner msgInner = ScheduleMessageService.this.messageTimeup(msgExt);
           if (TopicValidator.RMQ_SYS_TRANS_HALF_TOPIC.equals(msgInner.getTopic())) {
             log.error(
