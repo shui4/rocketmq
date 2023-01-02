@@ -463,7 +463,7 @@ public class DefaultMessageStore implements MessageStore {
     long minPhyOffset = this.commitLog.getMinOffset();
     for (ConcurrentMap<Integer, ConsumeQueue> maps : this.consumeQueueTable.values()) {
       for (ConsumeQueue logic : maps.values()) {
-        String key = logic.getTopic() + "-" + logic.getQueueId();
+        String key = logic.getTopic()+ "-" + logic.getQueueId();
         table.put(key, logic.getMaxOffsetInQueue());
         // 正确的最小偏移量
         logic.correctMinOffset(minPhyOffset);
@@ -729,7 +729,7 @@ public class DefaultMessageStore implements MessageStore {
       this.storeCheckpoint.flush();
       this.storeCheckpoint.shutdown();
 
-      if (this.runningFlags.isWriteable() && dispatchBehindBytes() == 0) {
+      if (this.runningFlags.isWriteable() && dispatchBehindBytes()== 0) {
         this.deleteFile(
             StorePathConfigHelper.getAbortFile(this.messageStoreConfig.getStorePathRootDir()));
         shutDownNormal = true;
@@ -910,7 +910,7 @@ public class DefaultMessageStore implements MessageStore {
    * @return {@link PutMessageStatus}
    */
   private PutMessageStatus checkMessage(MessageExtBrokerInner msg) {
-    if (msg.getTopic().length() > Byte.MAX_VALUE) {
+    if (msg.getTopic().length()> Byte.MAX_VALUE) {
       log.warn("putMessage message topic length too long" + msg.getTopic().length());
       return PutMessageStatus.MESSAGE_ILLEGAL;
     }
@@ -968,7 +968,7 @@ public class DefaultMessageStore implements MessageStore {
   private boolean isLmqConsumeQueueNumExceeded() {
     if (this.getMessageStoreConfig().isEnableLmq()
         && this.getMessageStoreConfig().isEnableMultiDispatch()
-        && this.lmqConsumeQueueNum.get() > this.messageStoreConfig.getMaxLmqConsumeQueueNum()) {
+        && this.lmqConsumeQueueNum.get()> this.messageStoreConfig.getMaxLmqConsumeQueueNum()) {
       return true;
     }
     return false;
@@ -1033,7 +1033,7 @@ public class DefaultMessageStore implements MessageStore {
    * @return {@link PutMessageStatus}
    */
   private PutMessageStatus checkMessages(MessageExtBatch messageExtBatch) {
-    if (messageExtBatch.getTopic().length() > Byte.MAX_VALUE) {
+    if (messageExtBatch.getTopic().length()> Byte.MAX_VALUE) {
       log.warn("putMessage message topic length too long" + messageExtBatch.getTopic().length());
       return PutMessageStatus.MESSAGE_ILLEGAL;
     }
@@ -1192,7 +1192,7 @@ public class DefaultMessageStore implements MessageStore {
                   isTagsCodeLegal = false;
                 }
               }
-
+              // 根据偏移量拉取消息后，首先根据 ConsumeQueue 条目进行消息过滤，如果不匹配则直接跳过该条消息，继续拉取下一条消
               if (messageFilter != null
                   && !messageFilter.isMatchedByConsumeQueue(
                       isTagsCodeLegal ? tagsCode : null, extRet ? cqExtUnit : null)) {
@@ -1212,7 +1212,8 @@ public class DefaultMessageStore implements MessageStore {
                 nextPhyFileStartOffset = this.commitLog.rollNextFile(offsetPy);
                 continue;
               }
-
+              // 如果消息根据 ConsumeQueue 条目进行过滤，则需要从 CommitLog 文件中加载整个消息体，然后根据属性进行过滤。当然如果 过滤方式是 TAG
+              // 模式，该方法默认返回 true
               if (messageFilter != null
                   && !messageFilter.isMatchedByCommitLog(
                       selectResult.getByteBuffer().slice(), null)) {
@@ -1540,7 +1541,7 @@ public class DefaultMessageStore implements MessageStore {
         double physicRatio =
             UtilAll.isPathExists(clPath) ? UtilAll.getDiskPartitionSpaceUsedPercent(clPath) : -1;
         result.put(
-            RunningStats.commitLogDiskRatio.name() + "_" + clPath, String.valueOf(physicRatio));
+            RunningStats.commitLogDiskRatio.name()+ "_" + clPath, String.valueOf(physicRatio));
         minPhysicsUsedRatio = Math.min(minPhysicsUsedRatio, physicRatio);
       }
       result.put(RunningStats.commitLogDiskRatio.name(), String.valueOf(minPhysicsUsedRatio));
@@ -1853,7 +1854,7 @@ public class DefaultMessageStore implements MessageStore {
    */
   @Override
   public long slaveFallBehindMuch() {
-    return this.commitLog.getMaxOffset() - this.haService.getPush2SlaveMaxOffset().get();
+    return this.commitLog.getMaxOffset()- this.haService.getPush2SlaveMaxOffset().get();
   }
 
   /**
@@ -2478,7 +2479,7 @@ public class DefaultMessageStore implements MessageStore {
         int destroyMapedFileIntervalForcibly =
             DefaultMessageStore.this.getMessageStoreConfig().getDestroyMapedFileIntervalForcibly();
         if (DefaultMessageStore.this.commitLog.retryDeleteFirstFile(
-            destroyMapedFileIntervalForcibly)) {}
+            destroyMapedFileIntervalForcibly)){}
       }
     }
 
@@ -3041,7 +3042,7 @@ public class DefaultMessageStore implements MessageStore {
                   // If user open the dledger pattern or the broker is master node,
                   // it will not ignore the exception and fix the reputFromOffset variable
                   if (DefaultMessageStore.this.getMessageStoreConfig().isEnableDLegerCommitLog()
-                      || DefaultMessageStore.this.brokerConfig.getBrokerId() == MixAll.MASTER_ID) {
+                      || DefaultMessageStore.this.brokerConfig.getBrokerId()== MixAll.MASTER_ID) {
                     log.error(
                         "[BUG]dispatch message to consume queue error, COMMITLOG OFFSET: {}",
                         this.reputFromOffset);

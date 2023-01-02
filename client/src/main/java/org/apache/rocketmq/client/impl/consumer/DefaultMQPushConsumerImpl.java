@@ -561,6 +561,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         };
 
     // region 构建消息拉取系统标记
+    // 根据订阅消息属性构建消息属性拉取标记，设置 subExpression、classFilter 等与消息过滤相关参数
     boolean commitOffsetEnable = false;
     long commitOffsetValue = 0L;
     if (MessageModel.CLUSTERING == this.defaultMQPushConsumer.getMessageModel()) {
@@ -1362,6 +1363,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
   public void subscribe(String topic, String subExpression) throws MQClientException {
     try {
       SubscriptionData subscriptionData = FilterAPI.buildSubscriptionData(topic, subExpression);
+      // 消费者订阅消息主题与消息过滤表达式。构建订阅信息 并加入 RebalanceImpl，以便 RebalanceImpl 进行消息队列负载，订阅 过滤数据
       this.rebalanceImpl.getSubscriptionInner().put(topic, subscriptionData);
       if (this.mQClientFactory != null) {
         this.mQClientFactory.sendHeartbeatToAllBrokerWithLock();

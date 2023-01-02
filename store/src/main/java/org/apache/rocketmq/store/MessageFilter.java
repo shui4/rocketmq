@@ -19,25 +19,29 @@ package org.apache.rocketmq.store;
 import java.nio.ByteBuffer;
 import java.util.Map;
 
+/**
+ * 消息过滤器
+ *
+ * @author shui4
+ */
 public interface MessageFilter {
-    /**
-     * match by tags code or filter bit map which is calculated when message received
-     * and stored in consume queue ext.
-     *
-     * @param tagsCode tagsCode
-     * @param cqExtUnit extend unit of consume queue
-     */
-    boolean isMatchedByConsumeQueue(final Long tagsCode,
-        final ConsumeQueueExt.CqExtUnit cqExtUnit);
+  /**
+   * 根据 {@link ConsumeQueue} 判断消息是否匹配
+   *
+   * @param tagsCode 消息标志的哈希码
+   * @param cqExtUnit {@link ConsumeQueue} 条目扩展属性
+   * @return ignore
+   */
+  boolean isMatchedByConsumeQueue(final Long tagsCode, final ConsumeQueueExt.CqExtUnit cqExtUnit);
 
-    /**
-     * match by message content which are stored in commit log.
-     * <br>{@code msgBuffer} and {@code properties} are not all null.If invoked in store,
-     * {@code properties} is null;If invoked in {@code PullRequestHoldService}, {@code msgBuffer} is null.
-     *
-     * @param msgBuffer message buffer in commit log, may be null if not invoked in store.
-     * @param properties message properties, should decode from buffer if null by yourself.
-     */
-    boolean isMatchedByCommitLog(final ByteBuffer msgBuffer,
-        final Map<String, String> properties);
+  /**
+   * 根据存储在 {@link CommitLog} 文件中的 内容判断消息是否匹配。
+   *
+   * <p>该方法主要 是为 SQL92 表达式模式服务的，根据消息属性实现类似于数据库 SQL where 条件的过滤方式
+   *
+   * @param msgBuffer 消息内容，如果为空，该方法返回 <code>true</code>
+   * @param properties 消息属性，主要用于 <code>SQL92</code> 过滤模式
+   * @return ignore
+   */
+  boolean isMatchedByCommitLog(final ByteBuffer msgBuffer, final Map<String, String> properties);
 }

@@ -70,12 +70,14 @@ public class PullAPIWrapper {
     PullResultExt pullResultExt = (PullResultExt) pullResult;
 
     this.updatePullFromWhichNode(mq, pullResultExt.getSuggestWhichBrokerId());
+    // 消息拉取线程 PullMessageService 默认会使用异步方式从服务器 拉取消息，消息消费端会通过 PullAPIWrapper 从响应结果解析拉取到 的消息。如果消息过滤模式为
+    // TAG，并且订阅 TAG 集合不为空，则对消 息的标志进行判断，如果集合中包含消息的 TAG，则返回给消费者消 费，否则跳过
     if (PullStatus.FOUND == pullResult.getPullStatus()) {
       ByteBuffer byteBuffer = ByteBuffer.wrap(pullResultExt.getMessageBinary());
       List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
       List<MessageExt> msgListFilterAgain = msgList;
-      if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
+      if (!subscriptionData.getTagsSet().isEmpty()&& !subscriptionData.isClassFilterMode()) {
         msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
         for (MessageExt msg : msgList) {
           if (msg.getTags() != null) {
@@ -190,7 +192,7 @@ public class PullAPIWrapper {
       {
         // check version
         if (!ExpressionType.isTagType(expressionType)
-            && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
+            && findBrokerResult.getBrokerVersion()< MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
           throw new MQClientException(
               "The broker["
                   + mq.getBrokerName()

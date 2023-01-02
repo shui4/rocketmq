@@ -15,9 +15,7 @@
  * limitations under the License.
  */
 
-/**
- * $Id: SubscriptionData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $
- */
+/** $Id: SubscriptionData.java 1835 2013-05-16 02:00:50Z vintagewang@apache.org $ */
 package org.apache.rocketmq.common.protocol.heartbeat;
 
 import com.alibaba.fastjson.annotation.JSONField;
@@ -27,157 +25,162 @@ import java.util.HashSet;
 import java.util.Set;
 
 public class SubscriptionData implements Comparable<SubscriptionData> {
-    public final static String SUB_ALL = "*";
-    private boolean classFilterMode = false;
-    private String topic;
-    private String subString;
-    private Set<String> tagsSet = new HashSet<String>();
-    private Set<Integer> codeSet = new HashSet<Integer>();
-    private long subVersion = System.currentTimeMillis();
-    private String expressionType = ExpressionType.TAG;
+  /** 过滤模式，默认全匹配 */
+  public static final String SUB_ALL = "*";
 
-    @JSONField(serialize = false)
-    private String filterClassSource;
+  /** 是否是类过滤模式，默认为 false */
+  private boolean classFilterMode = false;
+  /** 消息主题名称 */
+  private String topic;
+  /** 消息过滤表达式，多个用双竖线隔开，例 如“TAGA|| TAGB”。 */
+  private String subString;
+  /** 消息过滤标志集合，是消费端过滤时进行消息 过滤的依据 */
+  private Set<String> tagsSet = new HashSet<String>();
+  /** 消息过滤标志哈希码集合 */
+  private Set<Integer> codeSet = new HashSet<Integer>();
 
-    public SubscriptionData() {
+  private long subVersion = System.currentTimeMillis();
 
-    }
+  /** 过滤类型，{@link ExpressionType#TAG} 或 {@link ExpressionType#SQL92} */
+  private String expressionType = ExpressionType.TAG;
 
-    public SubscriptionData(String topic, String subString) {
-        super();
-        this.topic = topic;
-        this.subString = subString;
-    }
+  @JSONField(serialize = false)
+  private String filterClassSource;
 
-    public String getFilterClassSource() {
-        return filterClassSource;
-    }
+  public SubscriptionData() {}
 
-    public void setFilterClassSource(String filterClassSource) {
-        this.filterClassSource = filterClassSource;
-    }
+  public SubscriptionData(String topic, String subString) {
+    super();
+    this.topic = topic;
+    this.subString = subString;
+  }
 
-    public String getTopic() {
-        return topic;
-    }
+  public String getFilterClassSource() {
+    return filterClassSource;
+  }
 
-    public void setTopic(String topic) {
-        this.topic = topic;
-    }
+  public void setFilterClassSource(String filterClassSource) {
+    this.filterClassSource = filterClassSource;
+  }
 
-    public String getSubString() {
-        return subString;
-    }
+  public String getTopic() {
+    return topic;
+  }
 
-    public void setSubString(String subString) {
-        this.subString = subString;
-    }
+  public void setTopic(String topic) {
+    this.topic = topic;
+  }
 
-    public Set<String> getTagsSet() {
-        return tagsSet;
-    }
+  public String getSubString() {
+    return subString;
+  }
 
-    public void setTagsSet(Set<String> tagsSet) {
-        this.tagsSet = tagsSet;
-    }
+  public void setSubString(String subString) {
+    this.subString = subString;
+  }
 
-    public long getSubVersion() {
-        return subVersion;
-    }
+  public Set<String> getTagsSet() {
+    return tagsSet;
+  }
 
-    public void setSubVersion(long subVersion) {
-        this.subVersion = subVersion;
-    }
+  public void setTagsSet(Set<String> tagsSet) {
+    this.tagsSet = tagsSet;
+  }
 
-    public Set<Integer> getCodeSet() {
-        return codeSet;
-    }
+  public long getSubVersion() {
+    return subVersion;
+  }
 
-    public void setCodeSet(Set<Integer> codeSet) {
-        this.codeSet = codeSet;
-    }
+  public void setSubVersion(long subVersion) {
+    this.subVersion = subVersion;
+  }
 
-    public boolean isClassFilterMode() {
-        return classFilterMode;
-    }
+  public Set<Integer> getCodeSet() {
+    return codeSet;
+  }
 
-    public void setClassFilterMode(boolean classFilterMode) {
-        this.classFilterMode = classFilterMode;
-    }
+  public void setCodeSet(Set<Integer> codeSet) {
+    this.codeSet = codeSet;
+  }
 
-    public String getExpressionType() {
-        return expressionType;
-    }
+  public boolean isClassFilterMode() {
+    return classFilterMode;
+  }
 
-    public void setExpressionType(String expressionType) {
-        this.expressionType = expressionType;
-    }
+  public void setClassFilterMode(boolean classFilterMode) {
+    this.classFilterMode = classFilterMode;
+  }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + (classFilterMode ? 1231 : 1237);
-        result = prime * result + ((codeSet == null) ? 0 : codeSet.hashCode());
-        result = prime * result + ((subString == null) ? 0 : subString.hashCode());
-        result = prime * result + ((tagsSet == null) ? 0 : tagsSet.hashCode());
-        result = prime * result + ((topic == null) ? 0 : topic.hashCode());
-        result = prime * result + ((expressionType == null) ? 0 : expressionType.hashCode());
-        return result;
-    }
+  public String getExpressionType() {
+    return expressionType;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        SubscriptionData other = (SubscriptionData) obj;
-        if (classFilterMode != other.classFilterMode)
-            return false;
-        if (codeSet == null) {
-            if (other.codeSet != null)
-                return false;
-        } else if (!codeSet.equals(other.codeSet))
-            return false;
-        if (subString == null) {
-            if (other.subString != null)
-                return false;
-        } else if (!subString.equals(other.subString))
-            return false;
-        if (subVersion != other.subVersion)
-            return false;
-        if (tagsSet == null) {
-            if (other.tagsSet != null)
-                return false;
-        } else if (!tagsSet.equals(other.tagsSet))
-            return false;
-        if (topic == null) {
-            if (other.topic != null)
-                return false;
-        } else if (!topic.equals(other.topic))
-            return false;
-        if (expressionType == null) {
-            if (other.expressionType != null)
-                return false;
-        } else if (!expressionType.equals(other.expressionType))
-            return false;
-        return true;
-    }
+  public void setExpressionType(String expressionType) {
+    this.expressionType = expressionType;
+  }
 
-    @Override
-    public String toString() {
-        return "SubscriptionData [classFilterMode=" + classFilterMode + ", topic=" + topic + ", subString="
-            + subString + ", tagsSet=" + tagsSet + ", codeSet=" + codeSet + ", subVersion=" + subVersion
-            + ", expressionType=" + expressionType + "]";
-    }
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + (classFilterMode ? 1231 : 1237);
+    result = prime * result + ((codeSet == null) ? 0 : codeSet.hashCode());
+    result = prime * result + ((subString == null) ? 0 : subString.hashCode());
+    result = prime * result + ((tagsSet == null) ? 0 : tagsSet.hashCode());
+    result = prime * result + ((topic == null) ? 0 : topic.hashCode());
+    result = prime * result + ((expressionType == null) ? 0 : expressionType.hashCode());
+    return result;
+  }
 
-    @Override
-    public int compareTo(SubscriptionData other) {
-        String thisValue = this.topic + "@" + this.subString;
-        String otherValue = other.topic + "@" + other.subString;
-        return thisValue.compareTo(otherValue);
-    }
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
+    SubscriptionData other = (SubscriptionData) obj;
+    if (classFilterMode != other.classFilterMode) return false;
+    if (codeSet == null) {
+      if (other.codeSet != null) return false;
+    } else if (!codeSet.equals(other.codeSet)) return false;
+    if (subString == null) {
+      if (other.subString != null) return false;
+    } else if (!subString.equals(other.subString)) return false;
+    if (subVersion != other.subVersion) return false;
+    if (tagsSet == null) {
+      if (other.tagsSet != null) return false;
+    } else if (!tagsSet.equals(other.tagsSet)) return false;
+    if (topic == null) {
+      if (other.topic != null) return false;
+    } else if (!topic.equals(other.topic)) return false;
+    if (expressionType == null) {
+      if (other.expressionType != null) return false;
+    } else if (!expressionType.equals(other.expressionType)) return false;
+    return true;
+  }
+
+  @Override
+  public String toString() {
+    return "SubscriptionData [classFilterMode="
+        + classFilterMode
+        + ", topic="
+        + topic
+        + ", subString="
+        + subString
+        + ", tagsSet="
+        + tagsSet
+        + ", codeSet="
+        + codeSet
+        + ", subVersion="
+        + subVersion
+        + ", expressionType="
+        + expressionType
+        + "]";
+  }
+
+  @Override
+  public int compareTo(SubscriptionData other) {
+    String thisValue = this.topic + "@" + this.subString;
+    String otherValue = other.topic + "@" + other.subString;
+    return thisValue.compareTo(otherValue);
+  }
 }

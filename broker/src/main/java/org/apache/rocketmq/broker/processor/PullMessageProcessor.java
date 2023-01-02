@@ -89,11 +89,11 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
    * @param request 消息拉取请求
    * @param brokerAllowSuspend Broker 端是否支持挂起，
    *     <ul>
-   *       <li> 处理 消息拉取时默认传入 true，表示如果未找到消息则挂起，
-   *       <li> 如果该参数为 false，未找到消息时直接返回客户端消息未找到。
+   *       <li>处理 消息拉取时默认传入 true，表示如果未找到消息则挂起，
+   *       <li>如果该参数为 false，未找到消息时直接返回客户端消息未找到。
    *     </ul>
    *     <br>
-   *     <p> 为 true，表示支持挂起，则将响应对象 response 设置为 null，不会立即向客户端写入响应，hasSuspendFlag 参数在拉取消息时构建的拉取标记默认为
+   *     <p>为 true，表示支持挂起，则将响应对象 response 设置为 null，不会立即向客户端写入响应，hasSuspendFlag 参数在拉取消息时构建的拉取标记默认为
    *     true。 <br>
    *     默认支持挂起，根据是否开启长轮询决定挂起方式。如果开启长 轮询模式，挂起超时时间来自请求参数，推模式默认为 15s，拉模式通 过
    *     DefaultMQPullConsumer#brokerSuspenMaxTimeMillis 进行设置，默 认 20s。然后创建拉取任务 PullRequest 并提交到
@@ -181,7 +181,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
     }
 
     if (requestHeader.getQueueId() < 0
-        || requestHeader.getQueueId()>= topicConfig.getReadQueueNums()) {
+        || requestHeader.getQueueId() >= topicConfig.getReadQueueNums()) {
       String errorInfo =
           String.format(
               "queueId[%d] is illegal, topic:[%s] topicConfig.readQueueNums:[%d] consumer:[%s]",
@@ -195,6 +195,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
       return response;
     }
 
+    // 根据主题、消息过滤表达式构建订阅消息实体
     SubscriptionData subscriptionData = null;
     ConsumerFilterData consumerFilterData = null;
     if (hasSubscriptionFlag) {
@@ -204,6 +205,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
                 requestHeader.getTopic(),
                 requestHeader.getSubscription(),
                 requestHeader.getExpressionType());
+        // 如果不是 TAG 模式，构建过滤数据 ConsumeFilterData
         if (!ExpressionType.isTagType(subscriptionData.getExpressionType())) {
           consumerFilterData =
               ConsumerFilterManager.build(
@@ -239,7 +241,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
       }
 
       if (!subscriptionGroupConfig.isConsumeBroadcastEnable()
-          && consumerGroupInfo.getMessageModel()== MessageModel.BROADCASTING) {
+          && consumerGroupInfo.getMessageModel() == MessageModel.BROADCASTING) {
         response.setCode(ResponseCode.NO_PERMISSION);
         response.setRemark(
             "the consumer group["
@@ -303,7 +305,9 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
               + subscriptionData.getExpressionType());
       return response;
     }
-
+    // 构建消息过滤对象，ExpressionForRetryMessageFilter 支持对重试主题的过滤，ExpressionMessageFilter 表示不支持对重试
+    // 主题的属性进行过滤，也就是如果是 TAG 模式，执行
+    // isMatchedByCommitLog 方法将直接返回 true
     MessageFilter messageFilter;
     if (this.brokerController.getBrokerConfig().isFilterSupportRetry()) {
       messageFilter =
@@ -373,7 +377,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
         responseHeader.setSuggestWhichBrokerId(MixAll.MASTER_ID);
       }
       // endregion
-      
+
       // 状态映射：https://markdown.liuchengtu.com/work/?folderId=0&file_id=046087ecd0a03594e7871b6b0af6b4a4
       switch (getMessageResult.getStatus()) {
         case FOUND:
@@ -505,7 +509,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
                     requestHeader.getConsumerGroup(),
                     requestHeader.getTopic(),
                     requestHeader.getQueueId(),
-                    (int) (this.brokerController.getMessageStore().now()- beginTimeMills));
+                    (int) (this.brokerController.getMessageStore().now() - beginTimeMills));
             response.setBody(r);
           } else {
             try {

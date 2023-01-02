@@ -33,130 +33,146 @@ import java.util.Map;
 
 public class ExpressionMessageFilter implements MessageFilter {
 
-    protected static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
+  protected static final InternalLogger log =
+      InternalLoggerFactory.getLogger(LoggerName.FILTER_LOGGER_NAME);
 
-    protected final SubscriptionData subscriptionData;
-    protected final ConsumerFilterData consumerFilterData;
-    protected final ConsumerFilterManager consumerFilterManager;
-    protected final boolean bloomDataValid;
+  protected final SubscriptionData subscriptionData;
+  protected final ConsumerFilterData consumerFilterData;
+  protected final ConsumerFilterManager consumerFilterManager;
+  protected final boolean bloomDataValid;
 
-    public ExpressionMessageFilter(SubscriptionData subscriptionData, ConsumerFilterData consumerFilterData,
-        ConsumerFilterManager consumerFilterManager) {
-        this.subscriptionData = subscriptionData;
-        this.consumerFilterData = consumerFilterData;
-        this.consumerFilterManager = consumerFilterManager;
-        if (consumerFilterData == null) {
-            bloomDataValid = false;
-            return;
-        }
-        BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
-        if (bloomFilter != null && bloomFilter.isValid(consumerFilterData.getBloomFilterData())) {
-            bloomDataValid = true;
-        } else {
-            bloomDataValid = false;
-        }
+  public ExpressionMessageFilter(
+      SubscriptionData subscriptionData,
+      ConsumerFilterData consumerFilterData,
+      ConsumerFilterManager consumerFilterManager) {
+    this.subscriptionData = subscriptionData;
+    this.consumerFilterData = consumerFilterData;
+    this.consumerFilterManager = consumerFilterManager;
+    if (consumerFilterData == null) {
+      bloomDataValid = false;
+      return;
     }
+    BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
+    if (bloomFilter != null && bloomFilter.isValid(consumerFilterData.getBloomFilterData())) {
+      bloomDataValid = true;
+    } else {
+      bloomDataValid = false;
+    }
+  }
 
-    @Override
-    public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
-        if (null == subscriptionData) {
-            return true;
-        }
-
-        if (subscriptionData.isClassFilterMode()) {
-            return true;
-        }
-
-        // by tags code.
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
-
-            if (tagsCode == null) {
-                return true;
-            }
-
-            if (subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)) {
-                return true;
-            }
-
-            return subscriptionData.getCodeSet().contains(tagsCode.intValue());
-        } else {
-            // no expression or no bloom
-            if (consumerFilterData == null || consumerFilterData.getExpression() == null
-                || consumerFilterData.getCompiledExpression() == null || consumerFilterData.getBloomFilterData() == null) {
-                return true;
-            }
-
-            // message is before consumer
-            if (cqExtUnit == null || !consumerFilterData.isMsgInLive(cqExtUnit.getMsgStoreTime())) {
-                log.debug("Pull matched because not in live: {}, {}", consumerFilterData, cqExtUnit);
-                return true;
-            }
-
-            byte[] filterBitMap = cqExtUnit.getFilterBitMap();
-            BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
-            if (filterBitMap == null || !this.bloomDataValid
-                || filterBitMap.length * Byte.SIZE != consumerFilterData.getBloomFilterData().getBitNum()) {
-                return true;
-            }
-
-            BitsArray bitsArray = null;
-            try {
-                bitsArray = BitsArray.create(filterBitMap);
-                boolean ret = bloomFilter.isHit(consumerFilterData.getBloomFilterData(), bitsArray);
-                log.debug("Pull {} by bit map:{}, {}, {}", ret, consumerFilterData, bitsArray, cqExtUnit);
-                return ret;
-            } catch (Throwable e) {
-                log.error("bloom filter error, sub=" + subscriptionData
-                    + ", filter=" + consumerFilterData + ", bitMap=" + bitsArray, e);
-            }
-        }
-
+  @Override
+  public boolean isMatchedByConsumeQueue(Long tagsCode, ConsumeQueueExt.CqExtUnit cqExtUnit) {
+    // 如果订阅消息为空，则返回 true，不过滤消息
+    if (null == subscriptionData) {
+      return true;
+    }
+    // 如果是类过滤模式，则返回 true
+    if (subscriptionData.isClassFilterMode()) {
+      return true;
+    }
+    // 如果是 TAG 模式，
+    // by tags code.
+    if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+      // 消息的 tagsCode 参数为空或小于 0，则返回 true，说明消息在发送时没有设置 tag
+      if (tagsCode == null) {
         return true;
+      }
+      // *
+      if (subscriptionData.getSubString().equals(SubscriptionData.SUB_ALL)) {
+        return true;
+      }
+
+      // 如果订阅消息的 TAG hashcodes 集合中包含消息的 tagsCode，则返回 true
+      return subscriptionData.getCodeSet().contains(tagsCode.intValue());
+    } else {
+      // no expression or no bloom
+      if (consumerFilterData == null
+          || consumerFilterData.getExpression() == null
+          || consumerFilterData.getCompiledExpression() == null
+          || consumerFilterData.getBloomFilterData() == null) {
+        return true;
+      }
+
+      // message is before consumer
+      if (cqExtUnit == null || !consumerFilterData.isMsgInLive(cqExtUnit.getMsgStoreTime())) {
+        log.debug("Pull matched because not in live: {}, {}", consumerFilterData, cqExtUnit);
+        return true;
+      }
+
+      byte[] filterBitMap = cqExtUnit.getFilterBitMap();
+      BloomFilter bloomFilter = this.consumerFilterManager.getBloomFilter();
+      if (filterBitMap == null
+          || !this.bloomDataValid
+          || filterBitMap.length * Byte.SIZE
+              != consumerFilterData.getBloomFilterData().getBitNum()) {
+        return true;
+      }
+
+      BitsArray bitsArray = null;
+      try {
+        bitsArray = BitsArray.create(filterBitMap);
+        boolean ret = bloomFilter.isHit(consumerFilterData.getBloomFilterData(), bitsArray);
+        log.debug("Pull {} by bit map:{}, {}, {}", ret, consumerFilterData, bitsArray, cqExtUnit);
+        return ret;
+      } catch (Throwable e) {
+        log.error(
+            "bloom filter error, sub="
+                + subscriptionData
+                + ", filter="
+                + consumerFilterData
+                + ", bitMap="
+                + bitsArray,
+            e);
+      }
     }
 
-    @Override
-    public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
-        if (subscriptionData == null) {
-            return true;
-        }
-
-        if (subscriptionData.isClassFilterMode()) {
-            return true;
-        }
-
-        if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
-            return true;
-        }
-
-        ConsumerFilterData realFilterData = this.consumerFilterData;
-        Map<String, String> tempProperties = properties;
-
-        // no expression
-        if (realFilterData == null || realFilterData.getExpression() == null
-            || realFilterData.getCompiledExpression() == null) {
-            return true;
-        }
-
-        if (tempProperties == null && msgBuffer != null) {
-            tempProperties = MessageDecoder.decodeProperties(msgBuffer);
-        }
-
-        Object ret = null;
-        try {
-            MessageEvaluationContext context = new MessageEvaluationContext(tempProperties);
-
-            ret = realFilterData.getCompiledExpression().evaluate(context);
-        } catch (Throwable e) {
-            log.error("Message Filter error, " + realFilterData + ", " + tempProperties, e);
-        }
-
-        log.debug("Pull eval result: {}, {}, {}", ret, realFilterData, tempProperties);
-
-        if (ret == null || !(ret instanceof Boolean)) {
-            return false;
-        }
-
-        return (Boolean) ret;
+    return true;
+  }
+  // 该方法主要 是为 SQL92 表达式模式服务的，根据消息属性实现类似于数据库 SQL where 条件的过滤方式
+  @Override
+  public boolean isMatchedByCommitLog(ByteBuffer msgBuffer, Map<String, String> properties) {
+    // 如果订阅信息为空，则返回 true
+    if (subscriptionData == null) {
+      return true;
+    }
+    // 如果是类过滤模式，则返回 true
+    if (subscriptionData.isClassFilterMode()) {
+      return true;
+    }
+    // 如果是 TAG 模式，则返回 true
+    if (ExpressionType.isTagType(subscriptionData.getExpressionType())) {
+      return true;
     }
 
+    ConsumerFilterData realFilterData = this.consumerFilterData;
+    Map<String, String> tempProperties = properties;
+
+    // no expression
+    if (realFilterData == null
+        || realFilterData.getExpression() == null
+        || realFilterData.getCompiledExpression() == null) {
+      return true;
+    }
+
+    if (tempProperties == null && msgBuffer != null) {
+      tempProperties = MessageDecoder.decodeProperties(msgBuffer);
+    }
+
+    Object ret = null;
+    try {
+      MessageEvaluationContext context = new MessageEvaluationContext(tempProperties);
+
+      ret = realFilterData.getCompiledExpression().evaluate(context);
+    } catch (Throwable e) {
+      log.error("Message Filter error," + realFilterData + "," + tempProperties, e);
+    }
+
+    log.debug("Pull eval result: {}, {}, {}", ret, realFilterData, tempProperties);
+
+    if (ret == null || !(ret instanceof Boolean)) {
+      return false;
+    }
+
+    return (Boolean) ret;
+  }
 }
