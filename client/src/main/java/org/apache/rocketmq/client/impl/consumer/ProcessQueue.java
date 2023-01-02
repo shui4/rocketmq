@@ -34,8 +34,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * {@link ProcessQueue} 是{@link MessageQueue}在消费端的重现、快照。 PullMessageService从消息服务器默认每次拉取32条消息，按消息队
- * 列偏移量的顺序存放在ProcessQueue中，PullMessageService将消息 提交到消费者消费线程池，消息成功消费后，再从ProcessQueue中移除
+ * {@link ProcessQueue} 是 {@link MessageQueue} 在消费端的重现、快照。 PullMessageService 从消息服务器默认每次拉取 32
+ * 条消息，按消息队 列偏移量的顺序存放在 ProcessQueue 中，PullMessageService 将消息 提交到消费者消费线程池，消息成功消费后，再从 ProcessQueue 中移除
  */
 public class ProcessQueue {
   public static final long REBALANCE_LOCK_MAX_LIVE_TIME =
@@ -61,17 +61,17 @@ public class ProcessQueue {
 
   private final Lock consumeLock = new ReentrantLock();
   /**
-   * msgTreeMap的一个子集，仅在有序使用时使用 <br>
-   * 消息临时存储容器，键为消息在 ConsumeQueue中的偏移量。该结构用于处理顺序消息，消息消费线程。 从ProcessQueue的{@link
-   * #msgTreeMap}中取出消息前，先将消息临时存储在这里
+   * msgTreeMap 的一个子集，仅在有序使用时使用 <br>
+   * 消息临时存储容器，键为消息在 ConsumeQueue 中的偏移量。该结构用于处理顺序消息，消息消费线程。 从 ProcessQueue 的 {@link #msgTreeMap}
+   * 中取出消息前，先将消息临时存储在这里
    */
   private final TreeMap<Long, MessageExt> consumingMsgOrderlyTreeMap =
       new TreeMap<Long, MessageExt>();
 
   private final AtomicLong tryUnlockTimes = new AtomicLong(0);
-  /** 当前ProcessQueue中包含的 最大队列偏移量 */
+  /** 当前 ProcessQueue 中包含的 最大队列偏移量 */
   private volatile long queueOffsetMax = 0L;
-  /** 当前ProccesQueue是否 被丢弃 */
+  /** 当前 ProccesQueue 是否 被丢弃 */
   private volatile boolean dropped = false;
   /** 上一次开始拉取消息的 时间戳 */
   private volatile long lastPullTimestamp = System.currentTimeMillis();
@@ -84,7 +84,7 @@ public class ProcessQueue {
   private volatile long msgAccCnt = 0;
 
   /**
-   * 判断锁是否过期，锁超时 时间默认为30s，通过系统参数 rocketmq.broker.rebalance.lockMaxLiveTime 进行设置。{@link
+   * 判断锁是否过期，锁超时 时间默认为 30s，通过系统参数 rocketmq.broker.rebalance.lockMaxLiveTime 进行设置。{@link
    * #REBALANCE_LOCK_MAX_LIVE_TIME}
    */
   public boolean isLockExpired() {
@@ -92,7 +92,7 @@ public class ProcessQueue {
   }
 
   /**
-   * 判断PullMessageService 是否空闲，空闲时间默认120s，通过系统参数rocketmq.client.pull.pullMaxIdleTime进行设置。{@link
+   * 判断 PullMessageService 是否空闲，空闲时间默认 120s，通过系统参数 rocketmq.client.pull.pullMaxIdleTime 进行设置。{@link
    * #PULL_MAX_IDLE_TIME}
    */
   public boolean isPullExpired() {
@@ -243,7 +243,7 @@ public class ProcessQueue {
     return dispatchToConsume;
   }
 
-  /** 获取当前消息的最大间隔。 getMaxSpan()并不能说明ProceQueue包含的消息个数，但是能说明当 前处理队列中第一条消息与最后一条消息的偏移量的差距。 */
+  /** 获取当前消息的最大间隔。 getMaxSpan() 并不能说明 ProceQueue 包含的消息个数，但是能说明当 前处理队列中第一条消息与最后一条消息的偏移量的差距。 */
   public long getMaxSpan() {
     try {
       this.treeMapLock.readLock().lockInterruptibly();
@@ -290,7 +290,7 @@ public class ProcessQueue {
   }
 
   /**
-   * 将 {@link #consumingMsgOrderlyTreeMap} 中的所有消息重 新放入{@link #msgTreeMap}并清除 {@link
+   * 将 {@link #consumingMsgOrderlyTreeMap} 中的所有消息重 新放入 {@link #msgTreeMap} 并清除 {@link
    * #consumingMsgOrderlyTreeMap}
    */
   public void rollback() {
@@ -307,8 +307,13 @@ public class ProcessQueue {
     }
   }
 
-  /** 将{@link #consumingMsgOrderlyTreeMap}中的消息清除，表 示成功处理该批消息。 */
+  /** 将 {@link #consumingMsgOrderlyTreeMap} 中的消息清除，表 示成功处理该批消息。 */
   public long commit() {
+    // 提交就是将该批消息从 ProcessQueue 中移除，维护 msgCount（消
+    // 息处理队列中的消息条数）并获取消息消费的偏移量 offset，然后将
+    // 该批消息从 msgTreeMapTemp 中移除，并返回待保存的消息消费进度
+    // （offset+1）。从中可以看出，offset 表示消息消费队列的逻辑偏移
+    // 量，类似于数组的下标，代表第 n 个 ConsumeQueue 条目
     try {
       this.treeMapLock.writeLock().lockInterruptibly();
       try {

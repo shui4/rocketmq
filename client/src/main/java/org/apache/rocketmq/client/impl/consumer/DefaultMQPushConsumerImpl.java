@@ -355,6 +355,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     // 顺序消费：MessageListenerOrderly
     else {
       // 进程队列被上锁？
+
+      // 如果消息处理队列未被锁定，则延迟 3s 后再将 PullRequest 对象放
+      // 入拉取任务中，如果该处理队列是第一次拉取任务，则首先计算拉取
+      // 偏移量，然后向消息服务端拉取消息
       if (processQueue.isLocked()) {
         // 以前没有被上锁？
         if (!pullRequest.isPreviouslyLocked()) {
