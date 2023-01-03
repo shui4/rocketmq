@@ -12,6 +12,12 @@
     <groupId>indi.shui4</groupId>
     <artifactId>a-example</artifactId>
     <dependencies>
+
+        <dependency>
+            <groupId>org.apache.rocketmq</groupId>
+            <artifactId>rocketmq-acl</artifactId>
+            <version>4.9.4-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.apache.rocketmq</groupId>
             <artifactId>rocketmq-client</artifactId>

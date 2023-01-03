@@ -17,7 +17,7 @@
     </parent>
     <artifactId>rocketmq-acl</artifactId>
     <name>rocketmq-acl ${project.version}</name>
-
+    <description>访问控制列表</description>
     <dependencies>
         <dependency>
             <groupId>${project.groupId}</groupId>
