@@ -408,7 +408,7 @@ public class BrokerController {
 
       this.registerProcessor();
 
-      final long initialDelay = UtilAll.computeNextMorningTimeMillis() - System.currentTimeMillis();
+      final long initialDelay = UtilAll.computeNextMorningTimeMillis()- System.currentTimeMillis();
       final long period = 1000 * 60 * 60 * 24;
       this.scheduledExecutorService.scheduleAtFixedRate(
           new Runnable() {
@@ -626,18 +626,22 @@ public class BrokerController {
   }
 
   private void initialAcl() {
+    // ？未开启 ACL 功能，返回
     if (!this.brokerConfig.isAclEnable()) {
       log.info("The broker dose not enable acl");
       return;
     }
-
+    // 使用 SPI 机制加载配置的 AccessValidator 实现类，该方法返回一个列表，具体实现逻辑是读取
+    // METAINF/service/org.apache.rocketmq.acl.AccessValidator 文件中配置的访问验证器
     List<AccessValidator> accessValidators =
         ServiceProvider.load(ServiceProvider.ACL_VALIDATOR_ID, AccessValidator.class);
+    // ? 访问验证器为空，结束
     if (accessValidators == null || accessValidators.isEmpty()) {
       log.info("The broker dose not load the AccessValidator");
       return;
     }
-
+    // 遍历配置的访问验证器（AccessValidator）后，向 Broker 处理服务器注册钩子函数
+    // RocketMQ 默认为 PlainAccessValidator
     for (AccessValidator accessValidator : accessValidators) {
       final AccessValidator validator = accessValidator;
       accessValidatorMap.put(validator.getClass(), validator);
@@ -652,7 +656,7 @@ public class BrokerController {
 
             @Override
             public void doAfterResponse(
-                String remoteAddr, RemotingCommand request, RemotingCommand response) {}
+                String remoteAddr, RemotingCommand request, RemotingCommand response){}
           });
     }
   }
@@ -809,7 +813,7 @@ public class BrokerController {
     final Runnable peek = q.peek();
     if (peek != null) {
       RequestTask rt = BrokerFastFailure.castRunnable(peek);
-      slowTimeMills = rt == null ? 0 : this.messageStore.now() - rt.getCreateTimestamp();
+      slowTimeMills = rt == null ? 0 : this.messageStore.now()- rt.getCreateTimestamp();
     }
 
     if (slowTimeMills < 0) {
@@ -1017,7 +1021,7 @@ public class BrokerController {
   }
 
   public String getBrokerAddr() {
-    return this.brokerConfig.getBrokerIP1() + ":" + this.nettyServerConfig.getListenPort();
+    return this.brokerConfig.getBrokerIP1()+ ":" + this.nettyServerConfig.getListenPort();
   }
 
   public void start() throws Exception {
@@ -1059,7 +1063,7 @@ public class BrokerController {
       handleSlaveSynchronize(messageStoreConfig.getBrokerRole());
       this.registerBrokerAll(true, false, true);
     }
-    // 代码清单2-7 Broker发送心跳包
+    // 代码清单 2-7 Broker 发送心跳包
     this.scheduledExecutorService.scheduleAtFixedRate(
         new Runnable() {
 
@@ -1118,7 +1122,7 @@ public class BrokerController {
       final boolean checkOrderConfig, boolean oneway, boolean forceRegister) {
     TopicConfigSerializeWrapper topicConfigWrapper =
         this.getTopicConfigManager().buildTopicConfigSerializeWrapper();
-    // ? 没有读/写权限
+    // ? 没有读 / 写权限
     if (!PermName.isWriteable(this.getBrokerConfig().getBrokerPermission())
         || !PermName.isReadable(this.getBrokerConfig().getBrokerPermission())) {
       ConcurrentHashMap<String, TopicConfig> topicConfigTable =
@@ -1167,7 +1171,7 @@ public class BrokerController {
       RegisterBrokerResult registerBrokerResult = registerBrokerResultList.get(0);
       if (registerBrokerResult != null) {
         if (this.updateMasterHAServerAddrPeriodically
-            && registerBrokerResult.getHaServerAddr() != null) {
+            && registerBrokerResult.getHaServerAddr()!= null) {
           this.messageStore.updateHaMasterAddress(registerBrokerResult.getHaServerAddr());
         }
 
@@ -1211,7 +1215,7 @@ public class BrokerController {
   }
 
   public String getHAServerAddr() {
-    return this.brokerConfig.getBrokerIP2() + ":" + this.messageStoreConfig.getHaListenPort();
+    return this.brokerConfig.getBrokerIP2()+ ":" + this.messageStoreConfig.getHaListenPort();
   }
 
   public RebalanceLockManager getRebalanceLockManager() {

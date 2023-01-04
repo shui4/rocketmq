@@ -25,65 +25,71 @@ import org.apache.rocketmq.common.DataVersion;
 import org.apache.rocketmq.common.PlainAccessConfig;
 import org.apache.rocketmq.remoting.protocol.RemotingCommand;
 
+/**
+ * 访问验证器
+ *
+ * @author shui4
+ */
 public interface AccessValidator {
 
-    /**
-     * Parse to get the AccessResource(user, resource, needed permission)
-     *
-     * @param request
-     * @param remoteAddr
-     * @return Plain access resource result,include access key,signature and some other access attributes.
-     */
-    AccessResource parse(RemotingCommand request, String remoteAddr);
+  /**
+   * 从请求头中解析本次请求对应的访问资源，即本次请求需要的访问权限
+   *
+   * @param request ignore
+   * @param remoteAddr ignore
+   * @return 普通访问资源结果 ，包括访问密钥、签名和其他一些访问属性
+   */
+  AccessResource parse(RemotingCommand request, String remoteAddr);
 
-    /**
-     * Validate the access resource.
-     *
-     * @param accessResource
-     */
-    void validate(AccessResource accessResource);
+  /**
+   * 根据本次 需要访问的权限，与请求用户拥有的权限进行对比验证，判断请求用 户是否拥有权限。如果请求用户没有访问该操作的权限，则抛出异常，否则放行
+   *
+   * @param accessResource ignore
+   */
+  void validate(AccessResource accessResource);
 
-    /**
-     * Update the access resource config
-     *
-     * @param plainAccessConfig
-     * @return
-     */
-    boolean updateAccessConfig(PlainAccessConfig plainAccessConfig);
+  /**
+   * 更新 ACL 访问控制列表的配置
+   *
+   * @param plainAccessConfig ignore
+   * @return ignore
+   */
+  boolean updateAccessConfig(PlainAccessConfig plainAccessConfig);
 
-    /**
-     * Delete the access resource config
-     *
-     * @return
-     */
-    boolean deleteAccessConfig(String accesskey);
+  /**
+   * 根据账户名称删除访问授权规则
+   *
+   * @return
+   */
+  boolean deleteAccessConfig(String accesskey);
 
-    /**
-     * Get the access resource config version information
-     *
-     * @return
-     */
-    @Deprecated
-    String getAclConfigVersion();
+  /**
+   * 获取 ACL 配置当前的版本号
+   *
+   * @return ignore
+   */
+  @Deprecated
+  String getAclConfigVersion();
 
-    /**
-     * Update globalWhiteRemoteAddresses in acl yaml config file
-     *
-     * @return
-     */
-    boolean updateGlobalWhiteAddrsConfig(List<String> globalWhiteAddrsList);
+  /**
+   * 更新全局白名单 IP 列表
+   *
+   * @param globalWhiteAddrsList ignore
+   * @return ignore
+   */
+  boolean updateGlobalWhiteAddrsConfig(List<String> globalWhiteAddrsList);
 
-    /**
-     * get broker cluster acl config information
-     *
-     * @return
-     */
-    AclConfig getAllAclConfig();
+  /**
+   * 获取 ACL 相关的配置信息
+   *
+   * @return ignore
+   */
+  AclConfig getAllAclConfig();
 
-    /**
-     * get all access resource config version information
-     *
-     * @return
-     */
-    Map<String, DataVersion> getAllAclConfigVersion();
+  /**
+   * get all access resource config version information
+   *
+   * @return
+   */
+  Map<String, DataVersion> getAllAclConfigVersion();
 }

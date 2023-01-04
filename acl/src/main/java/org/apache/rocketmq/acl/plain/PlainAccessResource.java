@@ -22,180 +22,359 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.rocketmq.acl.AccessResource;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * PlainAccessResource
+ *
+ * @author shui4
+ */
 public class PlainAccessResource implements AccessResource {
 
-    // Identify the user
-    private String accessKey;
+  /** 访问 Key，用户名 */
+  // Identify the user
+  private String accessKey;
 
-    private String secretKey;
+  /** 用户密钥 */
+  private String secretKey;
 
-    private String whiteRemoteAddress;
+  /** 远程 IP 地址白名单 */
+  private String whiteRemoteAddress;
 
-    private boolean admin;
+  /** 是否是管理员角色 */
+  private boolean admin;
 
-    private byte defaultTopicPerm = 1;
+  /** 默认 topic 的访问权限，如果没有 配置 topic 的权限，则 topic 默认的访问权限为 1，表示 DENY */
+  private byte defaultTopicPerm = 1;
 
-    private byte defaultGroupPerm = 1;
+  /** 消费组默认访问权限，默认为 DENY */
+  private byte defaultGroupPerm = 1;
 
-    private Map<String, Byte> resourcePermMap;
+  /** 资源需要的访问权限映射表 */
+  private Map<String, Byte> resourcePermMap;
 
-    private RemoteAddressStrategy remoteAddressStrategy;
+  /** 远程 IP 地址验证策略 */
+  private RemoteAddressStrategy remoteAddressStrategy;
 
-    private int requestCode;
+  /** 当前请求的 <code>requestCode</code> */
+  private int requestCode;
 
-    // The content to calculate the content
-    private byte[] content;
+  /**
+   * 请求头与请求体的内容。
+   * <p> 要计算的内容。</p>
+   */
+  private byte[] content;
 
-    private String signature;
+  /**
+   * 签名字符串，这是通常的套路，在客户 端，首先将请求参数排序，然后使用 secretKey 生成签名字符串，<br>
+   * 在服务端重复这个步骤，然后对比签名字符串，如果相同，则认为登录成功，否则失败
+   */
+  private String signature;
 
-    private String secretToken;
+  /** 密钥令牌 */
+  private String secretToken;
 
-    private String recognition;
+  /** 保留字段，目前未被使用 */
+  private String recognition;
 
-    public PlainAccessResource() {
+  /** PlainAccessResource */
+  public PlainAccessResource(){}
+
+  /**
+   * isRetryTopic
+   *
+   * @param topic ignore
+   * @return ignore
+   */
+  public static boolean isRetryTopic(String topic) {
+    return null != topic && topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX);
+  }
+
+  /**
+   * printStr
+   *
+   * @param resource ignore
+   * @param isGroup ignore
+   * @return ignore
+   */
+  public static String printStr(String resource, boolean isGroup) {
+    if (resource == null) {
+      return null;
     }
-
-    public static boolean isRetryTopic(String topic) {
-        return null != topic && topic.startsWith(MixAll.RETRY_GROUP_TOPIC_PREFIX);
+    if (isGroup) {
+      return String.format("%s:%s", "group", getGroupFromRetryTopic(resource));
+    } else {
+      return String.format("%s:%s", "topic", resource);
     }
+  }
 
-    public static String printStr(String resource, boolean isGroup) {
-        if (resource == null) {
-            return null;
-        }
-        if (isGroup) {
-            return String.format("%s:%s", "group", getGroupFromRetryTopic(resource));
-        } else {
-            return String.format("%s:%s", "topic", resource);
-        }
+  /**
+   * getGroupFromRetryTopic
+   *
+   * @param retryTopic ignore
+   * @return ignore
+   */
+  public static String getGroupFromRetryTopic(String retryTopic) {
+    if (retryTopic == null) {
+      return null;
     }
+    return retryTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
+  }
 
-    public static String getGroupFromRetryTopic(String retryTopic) {
-        if (retryTopic == null) {
-            return null;
-        }
-        return retryTopic.substring(MixAll.RETRY_GROUP_TOPIC_PREFIX.length());
+  /**
+   * getRetryTopic
+   *
+   * @param group ignore
+   * @return ignore
+   */
+  public static String getRetryTopic(String group) {
+    if (group == null) {
+      return null;
     }
+    return MixAll.getRetryTopic(group);
+  }
 
-    public static String getRetryTopic(String group) {
-        if (group == null) {
-            return null;
-        }
-        return MixAll.getRetryTopic(group);
+  /**
+   * addResourceAndPerm
+   *
+   * @param resource ignore
+   * @param perm ignore
+   */
+  public void addResourceAndPerm(String resource, byte perm) {
+    if (resource == null) {
+      return;
     }
+    if (resourcePermMap == null) {
+      resourcePermMap = new HashMap<>();
+    }
+    resourcePermMap.put(resource, perm);
+  }
 
-    public void addResourceAndPerm(String resource, byte perm) {
-        if (resource == null) {
-            return;
-        }
-        if (resourcePermMap == null) {
-            resourcePermMap = new HashMap<>();
-        }
-        resourcePermMap.put(resource, perm);
-    }
+  /**
+   * getAccessKey
+   *
+   * @return ignore
+   */
+  public String getAccessKey() {
+    return accessKey;
+  }
 
-    public String getAccessKey() {
-        return accessKey;
-    }
+  /**
+   * setAccessKey
+   *
+   * @param accessKey ignore
+   */
+  public void setAccessKey(String accessKey) {
+    this.accessKey = accessKey;
+  }
 
-    public void setAccessKey(String accessKey) {
-        this.accessKey = accessKey;
-    }
+  /**
+   * getSecretKey
+   *
+   * @return ignore
+   */
+  public String getSecretKey() {
+    return secretKey;
+  }
 
-    public String getSecretKey() {
-        return secretKey;
-    }
+  /**
+   * setSecretKey
+   *
+   * @param secretKey ignore
+   */
+  public void setSecretKey(String secretKey) {
+    this.secretKey = secretKey;
+  }
 
-    public void setSecretKey(String secretKey) {
-        this.secretKey = secretKey;
-    }
+  /**
+   * getWhiteRemoteAddress
+   *
+   * @return ignore
+   */
+  public String getWhiteRemoteAddress() {
+    return whiteRemoteAddress;
+  }
 
-    public String getWhiteRemoteAddress() {
-        return whiteRemoteAddress;
-    }
+  /**
+   * setWhiteRemoteAddress
+   *
+   * @param whiteRemoteAddress ignore
+   */
+  public void setWhiteRemoteAddress(String whiteRemoteAddress) {
+    this.whiteRemoteAddress = whiteRemoteAddress;
+  }
 
-    public void setWhiteRemoteAddress(String whiteRemoteAddress) {
-        this.whiteRemoteAddress = whiteRemoteAddress;
-    }
+  /**
+   * isAdmin
+   *
+   * @return ignore
+   */
+  public boolean isAdmin() {
+    return admin;
+  }
 
-    public boolean isAdmin() {
-        return admin;
-    }
+  /**
+   * setAdmin
+   *
+   * @param admin ignore
+   */
+  public void setAdmin(boolean admin) {
+    this.admin = admin;
+  }
 
-    public void setAdmin(boolean admin) {
-        this.admin = admin;
-    }
+  /**
+   * getDefaultTopicPerm
+   *
+   * @return ignore
+   */
+  public byte getDefaultTopicPerm() {
+    return defaultTopicPerm;
+  }
 
-    public byte getDefaultTopicPerm() {
-        return defaultTopicPerm;
-    }
+  /**
+   * setDefaultTopicPerm
+   *
+   * @param defaultTopicPerm ignore
+   */
+  public void setDefaultTopicPerm(byte defaultTopicPerm) {
+    this.defaultTopicPerm = defaultTopicPerm;
+  }
 
-    public void setDefaultTopicPerm(byte defaultTopicPerm) {
-        this.defaultTopicPerm = defaultTopicPerm;
-    }
+  /**
+   * getDefaultGroupPerm
+   *
+   * @return ignore
+   */
+  public byte getDefaultGroupPerm() {
+    return defaultGroupPerm;
+  }
 
-    public byte getDefaultGroupPerm() {
-        return defaultGroupPerm;
-    }
+  /**
+   * setDefaultGroupPerm
+   *
+   * @param defaultGroupPerm ignore
+   */
+  public void setDefaultGroupPerm(byte defaultGroupPerm) {
+    this.defaultGroupPerm = defaultGroupPerm;
+  }
 
-    public void setDefaultGroupPerm(byte defaultGroupPerm) {
-        this.defaultGroupPerm = defaultGroupPerm;
-    }
+  /**
+   * getResourcePermMap
+   *
+   * @return ignore
+   */
+  public Map<String, Byte> getResourcePermMap() {
+    return resourcePermMap;
+  }
 
-    public Map<String, Byte> getResourcePermMap() {
-        return resourcePermMap;
-    }
+  /**
+   * getRecognition
+   *
+   * @return ignore
+   */
+  public String getRecognition() {
+    return recognition;
+  }
 
-    public String getRecognition() {
-        return recognition;
-    }
+  /**
+   * setRecognition
+   *
+   * @param recognition ignore
+   */
+  public void setRecognition(String recognition) {
+    this.recognition = recognition;
+  }
 
-    public void setRecognition(String recognition) {
-        this.recognition = recognition;
-    }
+  /**
+   * getRequestCode
+   *
+   * @return ignore
+   */
+  public int getRequestCode() {
+    return requestCode;
+  }
 
-    public int getRequestCode() {
-        return requestCode;
-    }
+  /**
+   * setRequestCode
+   *
+   * @param requestCode ignore
+   */
+  public void setRequestCode(int requestCode) {
+    this.requestCode = requestCode;
+  }
 
-    public void setRequestCode(int requestCode) {
-        this.requestCode = requestCode;
-    }
+  /**
+   * getSecretToken
+   *
+   * @return ignore
+   */
+  public String getSecretToken() {
+    return secretToken;
+  }
 
-    public String getSecretToken() {
-        return secretToken;
-    }
+  /**
+   * setSecretToken
+   *
+   * @param secretToken ignore
+   */
+  public void setSecretToken(String secretToken) {
+    this.secretToken = secretToken;
+  }
 
-    public void setSecretToken(String secretToken) {
-        this.secretToken = secretToken;
-    }
+  /**
+   * getRemoteAddressStrategy
+   *
+   * @return ignore
+   */
+  public RemoteAddressStrategy getRemoteAddressStrategy() {
+    return remoteAddressStrategy;
+  }
 
-    public RemoteAddressStrategy getRemoteAddressStrategy() {
-        return remoteAddressStrategy;
-    }
+  /**
+   * setRemoteAddressStrategy
+   *
+   * @param remoteAddressStrategy ignore
+   */
+  public void setRemoteAddressStrategy(RemoteAddressStrategy remoteAddressStrategy) {
+    this.remoteAddressStrategy = remoteAddressStrategy;
+  }
 
-    public void setRemoteAddressStrategy(RemoteAddressStrategy remoteAddressStrategy) {
-        this.remoteAddressStrategy = remoteAddressStrategy;
-    }
+  /**
+   * getSignature
+   *
+   * @return ignore
+   */
+  public String getSignature() {
+    return signature;
+  }
 
-    public String getSignature() {
-        return signature;
-    }
+  /**
+   * setSignature
+   *
+   * @param signature ignore
+   */
+  public void setSignature(String signature) {
+    this.signature = signature;
+  }
 
-    public void setSignature(String signature) {
-        this.signature = signature;
-    }
+  @Override
+  public String toString() {
+    return ToStringBuilder.reflectionToString(this);
+  }
 
-    @Override
-    public String toString() {
-        return ToStringBuilder.reflectionToString(this);
-    }
+  /**
+   * getContent
+   *
+   * @return ignore
+   */
+  public byte[] getContent() {
+    return content;
+  }
 
-    public byte[] getContent() {
-        return content;
-    }
-
-    public void setContent(byte[] content) {
-        this.content = content;
-    }
+  /**
+   * setContent
+   *
+   * @param content ignore
+   */
+  public void setContent(byte[] content) {
+    this.content = content;
+  }
 }
