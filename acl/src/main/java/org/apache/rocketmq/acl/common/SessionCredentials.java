@@ -22,142 +22,222 @@ import java.nio.charset.Charset;
 import java.util.Properties;
 import org.apache.rocketmq.common.MixAll;
 
+/**
+ * 会话凭证
+ *
+ * @author shui4
+ */
 public class SessionCredentials {
-    public static final Charset CHARSET = Charset.forName("UTF-8");
-    public static final String ACCESS_KEY = "AccessKey";
-    public static final String SECRET_KEY = "SecretKey";
-    public static final String SIGNATURE = "Signature";
-    public static final String SECURITY_TOKEN = "SecurityToken";
+  /** CHARSET */
+  public static final Charset CHARSET = Charset.forName("UTF-8");
 
-    public static final String KEY_FILE = System.getProperty("rocketmq.client.keyFile",
-        System.getProperty("user.home") + File.separator + "key");
+  /** 用户访问 key，对应配置在 Broker 端的用户名 */
+  public static final String ACCESS_KEY = "AccessKey";
 
-    private String accessKey;
-    private String secretKey;
-    private String securityToken;
-    private String signature;
+  /** 用户访问密钥，客户端首先会对请求参数进 行排序，然后使用该密钥对请求参数生成签名验证参数，并随着 请求传递到服务端。注意该密钥是不会在网络上进行传输的 */
+  public static final String SECRET_KEY = "SecretKey";
 
-    public SessionCredentials() {
-        String keyContent = null;
-        try {
-            keyContent = MixAll.file2String(KEY_FILE);
-        } catch (IOException ignore) {
-        }
-        if (keyContent != null) {
-            Properties prop = MixAll.string2Properties(keyContent);
-            if (prop != null) {
-                this.updateContent(prop);
-            }
-        }
+  /** 签名字符串 */
+  public static final String SIGNATURE = "Signature";
+
+  /** 安全会话令牌，通常只需使用 accessKey 和 secretKey */
+  public static final String SECURITY_TOKEN = "SecurityToken";
+
+  /** KEY_FILE */
+  public static final String KEY_FILE =
+      System.getProperty(
+          "rocketmq.client.keyFile", System.getProperty("user.home") + File.separator + "key");
+
+  /** accessKey */
+  private String accessKey;
+
+  /** secretKey */
+  private String secretKey;
+
+  /** securityToken */
+  private String securityToken;
+
+  /** signature */
+  private String signature;
+
+  /** SessionCredentials */
+  public SessionCredentials() {
+    String keyContent = null;
+    try {
+      keyContent = MixAll.file2String(KEY_FILE);
+    } catch (IOException ignore) {
     }
-
-    public SessionCredentials(String accessKey, String secretKey) {
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
+    if (keyContent != null) {
+      Properties prop = MixAll.string2Properties(keyContent);
+      if (prop != null) {
+        this.updateContent(prop);
+      }
     }
+  }
 
-    public SessionCredentials(String accessKey, String secretKey, String securityToken) {
-        this(accessKey, secretKey);
-        this.securityToken = securityToken;
+  /**
+   * SessionCredentials
+   *
+   * @param accessKey ignore
+   * @param secretKey ignore
+   */
+  public SessionCredentials(String accessKey, String secretKey) {
+    this.accessKey = accessKey;
+    this.secretKey = secretKey;
+  }
+
+  /**
+   * SessionCredentials
+   *
+   * @param accessKey ignore
+   * @param secretKey ignore
+   * @param securityToken ignore
+   */
+  public SessionCredentials(String accessKey, String secretKey, String securityToken) {
+    this(accessKey, secretKey);
+    this.securityToken = securityToken;
+  }
+
+  /**
+   * updateContent
+   *
+   * @param prop ignore
+   */
+  public void updateContent(Properties prop) {
+    {
+      String value = prop.getProperty(ACCESS_KEY);
+      if (value != null) {
+        this.accessKey = value.trim();
+      }
     }
-
-    public void updateContent(Properties prop) {
-        {
-            String value = prop.getProperty(ACCESS_KEY);
-            if (value != null) {
-                this.accessKey = value.trim();
-            }
-        }
-        {
-            String value = prop.getProperty(SECRET_KEY);
-            if (value != null) {
-                this.secretKey = value.trim();
-            }
-        }
-        {
-            String value = prop.getProperty(SECURITY_TOKEN);
-            if (value != null) {
-                this.securityToken = value.trim();
-            }
-        }
+    {
+      String value = prop.getProperty(SECRET_KEY);
+      if (value != null) {
+        this.secretKey = value.trim();
+      }
     }
-
-    public String getAccessKey() {
-        return accessKey;
+    {
+      String value = prop.getProperty(SECURITY_TOKEN);
+      if (value != null) {
+        this.securityToken = value.trim();
+      }
     }
+  }
 
-    public void setAccessKey(String accessKey) {
-        this.accessKey = accessKey;
-    }
+  /**
+   * getAccessKey
+   *
+   * @return ignore
+   */
+  public String getAccessKey() {
+    return accessKey;
+  }
 
-    public String getSecretKey() {
-        return secretKey;
-    }
+  /**
+   * setAccessKey
+   *
+   * @param accessKey ignore
+   */
+  public void setAccessKey(String accessKey) {
+    this.accessKey = accessKey;
+  }
 
-    public void setSecretKey(String secretKey) {
-        this.secretKey = secretKey;
-    }
+  /**
+   * getSecretKey
+   *
+   * @return ignore
+   */
+  public String getSecretKey() {
+    return secretKey;
+  }
 
-    public String getSignature() {
-        return signature;
-    }
+  /**
+   * setSecretKey
+   *
+   * @param secretKey ignore
+   */
+  public void setSecretKey(String secretKey) {
+    this.secretKey = secretKey;
+  }
 
-    public void setSignature(String signature) {
-        this.signature = signature;
-    }
+  /**
+   * getSignature
+   *
+   * @return ignore
+   */
+  public String getSignature() {
+    return signature;
+  }
 
-    public String getSecurityToken() {
-        return securityToken;
-    }
+  /**
+   * setSignature
+   *
+   * @param signature ignore
+   */
+  public void setSignature(String signature) {
+    this.signature = signature;
+  }
 
-    public void setSecurityToken(final String securityToken) {
-        this.securityToken = securityToken;
-    }
+  /**
+   * getSecurityToken
+   *
+   * @return ignore
+   */
+  public String getSecurityToken() {
+    return securityToken;
+  }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((accessKey == null) ? 0 : accessKey.hashCode());
-        result = prime * result + ((secretKey == null) ? 0 : secretKey.hashCode());
-        result = prime * result + ((signature == null) ? 0 : signature.hashCode());
-        return result;
-    }
+  /**
+   * setSecurityToken
+   *
+   * @param securityToken ignore
+   */
+  public void setSecurityToken(final String securityToken) {
+    this.securityToken = securityToken;
+  }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((accessKey == null) ? 0 : accessKey.hashCode());
+    result = prime * result + ((secretKey == null) ? 0 : secretKey.hashCode());
+    result = prime * result + ((signature == null) ? 0 : signature.hashCode());
+    return result;
+  }
 
-        SessionCredentials other = (SessionCredentials) obj;
-        if (accessKey == null) {
-            if (other.accessKey != null)
-                return false;
-        } else if (!accessKey.equals(other.accessKey))
-            return false;
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) return true;
+    if (obj == null) return false;
+    if (getClass() != obj.getClass()) return false;
 
-        if (secretKey == null) {
-            if (other.secretKey != null)
-                return false;
-        } else if (!secretKey.equals(other.secretKey))
-            return false;
+    SessionCredentials other = (SessionCredentials) obj;
+    if (accessKey == null) {
+      if (other.accessKey != null) return false;
+    } else if (!accessKey.equals(other.accessKey)) return false;
 
-        if (signature == null) {
-            if (other.signature != null)
-                return false;
-        } else if (!signature.equals(other.signature))
-            return false;
+    if (secretKey == null) {
+      if (other.secretKey != null) return false;
+    } else if (!secretKey.equals(other.secretKey)) return false;
 
-        return true;
-    }
+    if (signature == null) {
+      if (other.signature != null) return false;
+    } else if (!signature.equals(other.signature)) return false;
 
-    @Override
-    public String toString() {
-        return "SessionCredentials [accessKey=" + accessKey + ", secretKey=" + secretKey + ", signature="
-            + signature + ", SecurityToken=" + securityToken + "]";
-    }
+    return true;
+  }
+
+  @Override
+  public String toString() {
+    return "SessionCredentials [accessKey="
+        + accessKey
+        + ", secretKey="
+        + secretKey
+        + ", signature="
+        + signature
+        + ", SecurityToken="
+        + securityToken
+        + "]";
+  }
 }
