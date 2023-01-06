@@ -231,7 +231,11 @@ public class HAService {
     return push2SlaveMaxOffset;
   }
 
-  /** Listens to slave connections to create {@link HAConnection}. @author shui4 */
+  /**
+   * 高可用主服务器监听客户 端连接实现类
+   *
+   * @author shui4
+   */
   class AcceptSocketService extends ServiceThread {
     private final SocketAddress socketAddressListen;
     private ServerSocketChannel serverSocketChannel;
@@ -322,7 +326,11 @@ public class HAService {
     }
   }
 
-  /** GroupTransferService Service @author shui4 */
+  /**
+   * 主从同步通知实现类
+   *
+   * @author shui4
+   */
   class GroupTransferService extends ServiceThread {
 
     private final WaitNotifyObject notifyTransferObject = new WaitNotifyObject();
@@ -400,7 +408,7 @@ public class HAService {
   }
 
   /**
-   * HAClient
+   * HA 客户端实现类
    *
    * @author shui4
    */
