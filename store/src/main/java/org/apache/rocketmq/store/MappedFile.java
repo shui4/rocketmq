@@ -83,7 +83,9 @@ public class MappedFile extends ReferenceResource {
   // endregion
   /** 文件名 */
   private String fileName;
-  // 文件逻辑偏移量，即文件名
+  /**
+   * 文件逻辑偏移量，即文件名
+   */
   private long fileFromOffset;
   /** 物理文件 */
   private File file;

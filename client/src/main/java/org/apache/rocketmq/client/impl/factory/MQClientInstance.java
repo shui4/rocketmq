@@ -70,9 +70,11 @@ public class MQClientInstance {
   private final ConcurrentMap<String /* group */, MQAdminExtInner> adminExtTable =
       new ConcurrentHashMap<String, MQAdminExtInner>();
   private final long bootTimestamp = System.currentTimeMillis();
+  /** 地址缓存表 */
   private final ConcurrentMap<
           String /* Broker Name */, HashMap<Long /* brokerId */, String /* address */>>
       brokerAddrTable = new ConcurrentHashMap<String, HashMap<Long, String>>();
+
   private final ConcurrentMap<String /* Broker Name */, HashMap<String /* address */, Integer>>
       brokerVersionTable = new ConcurrentHashMap<String, HashMap<String, Integer>>();
   private final ClientConfig clientConfig;
@@ -152,6 +154,73 @@ public class MQClientInstance {
         this.clientConfig,
         MQVersion.getVersionDesc(MQVersion.CURRENT_VERSION),
         RemotingCommand.getSerializeTypeConfigInThisServer());
+  }
+
+  public static TopicPublishInfo topicRouteData2TopicPublishInfo(
+      final String topic, final TopicRouteData route) {
+    TopicPublishInfo info = new TopicPublishInfo();
+    info.setTopicRouteData(route);
+    if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
+      String[] brokers = route.getOrderTopicConf().split(";");
+      for (String broker : brokers) {
+        String[] item = broker.split(":");
+        int nums = Integer.parseInt(item[1]);
+        for (int i = 0; i < nums; i++) {
+          MessageQueue mq = new MessageQueue(topic, item[0], i);
+          info.getMessageQueueList().add(mq);
+        }
+      }
+
+      info.setOrderTopic(true);
+    } else {
+      // 代码清单 3-13  将 topicRouteData 中的 List<QueueData> 转换成 topicPublishInfo 的 List<MessageQueue> 列表
+      List<QueueData> qds = route.getQueueDatas();
+      Collections.sort(qds);
+      for (QueueData qd : qds) {
+        if (PermName.isWriteable(qd.getPerm())) {
+          BrokerData brokerData = null;
+          for (BrokerData bd : route.getBrokerDatas()) {
+            if (bd.getBrokerName().equals(qd.getBrokerName())) {
+              brokerData = bd;
+              break;
+            }
+          }
+
+          if (null == brokerData) {
+            continue;
+          }
+
+          if (!brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
+            continue;
+          }
+
+          for (int i = 0; i < qd.getWriteQueueNums(); i++) {
+            MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
+            info.getMessageQueueList().add(mq);
+          }
+        }
+      }
+
+      info.setOrderTopic(false);
+    }
+
+    return info;
+  }
+
+  public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(
+      final String topic, final TopicRouteData route) {
+    Set<MessageQueue> mqList = new HashSet<MessageQueue>();
+    List<QueueData> qds = route.getQueueDatas();
+    for (QueueData qd : qds) {
+      if (PermName.isReadable(qd.getPerm())) {
+        for (int i = 0; i < qd.getReadQueueNums(); i++) {
+          MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
+          mqList.add(mq);
+        }
+      }
+    }
+
+    return mqList;
   }
 
   public void checkClientInBroker() throws MQClientException {
@@ -284,13 +353,23 @@ public class MQClientInstance {
     return null;
   }
 
+  /**
+   * 在订阅中查找 Broker 地址
+   *
+   * @param brokerName Broker 名称
+   * @param brokerId BrokerID
+   * @param onlyThisBroker 是否必须返回与 brokerId 的 Broker 对应的服务器信息
+   * @return ignore
+   */
   public FindBrokerResult findBrokerAddressInSubscribe(
       final String brokerName, final long brokerId, final boolean onlyThisBroker) {
     String brokerAddr = null;
     boolean slave = false;
     boolean found = false;
-
+    // 从地址缓存表中根据 brokerName 获取所有的 Broker 信息
     HashMap<Long /* brokerId */, String /* address */> map = this.brokerAddrTable.get(brokerName);
+    // 根据 brokerId 从 Broker 主从缓存主表中获取指定的 Broker 名称，如果根据 brokerId 未找到相关条目，且 onlyThisBroker 为
+    // false，则随机返回 Broker 中任意一个 broker，否则返回 null
     if (map != null && !map.isEmpty()) {
       brokerAddr = map.get(brokerId);
       slave = brokerId != MixAll.MASTER_ID;
@@ -308,7 +387,7 @@ public class MQClientInstance {
         found = true;
       }
     }
-
+    // 组装 FindBrokerResult 时，需要设置节点属性是否是 slaver。如果 brokerId=0，表示返回的 Broker 是主节点，否则返回的是从节点
     if (found) {
       return new FindBrokerResult(brokerAddr, slave, findBrokerVersion(brokerName, brokerAddr));
     }
@@ -518,73 +597,6 @@ public class MQClientInstance {
     }
 
     return result;
-  }
-
-  public static TopicPublishInfo topicRouteData2TopicPublishInfo(
-      final String topic, final TopicRouteData route) {
-    TopicPublishInfo info = new TopicPublishInfo();
-    info.setTopicRouteData(route);
-    if (route.getOrderTopicConf() != null && route.getOrderTopicConf().length() > 0) {
-      String[] brokers = route.getOrderTopicConf().split(";");
-      for (String broker : brokers) {
-        String[] item = broker.split(":");
-        int nums = Integer.parseInt(item[1]);
-        for (int i = 0; i < nums; i++) {
-          MessageQueue mq = new MessageQueue(topic, item[0], i);
-          info.getMessageQueueList().add(mq);
-        }
-      }
-
-      info.setOrderTopic(true);
-    } else {
-      // 代码清单 3-13  将 topicRouteData 中的 List<QueueData> 转换成 topicPublishInfo 的 List<MessageQueue> 列表
-      List<QueueData> qds = route.getQueueDatas();
-      Collections.sort(qds);
-      for (QueueData qd : qds) {
-        if (PermName.isWriteable(qd.getPerm())) {
-          BrokerData brokerData = null;
-          for (BrokerData bd : route.getBrokerDatas()) {
-            if (bd.getBrokerName().equals(qd.getBrokerName())) {
-              brokerData = bd;
-              break;
-            }
-          }
-
-          if (null == brokerData) {
-            continue;
-          }
-
-          if (!brokerData.getBrokerAddrs().containsKey(MixAll.MASTER_ID)) {
-            continue;
-          }
-
-          for (int i = 0; i < qd.getWriteQueueNums(); i++) {
-            MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
-            info.getMessageQueueList().add(mq);
-          }
-        }
-      }
-
-      info.setOrderTopic(false);
-    }
-
-    return info;
-  }
-
-  public static Set<MessageQueue> topicRouteData2TopicSubscribeInfo(
-      final String topic, final TopicRouteData route) {
-    Set<MessageQueue> mqList = new HashSet<MessageQueue>();
-    List<QueueData> qds = route.getQueueDatas();
-    for (QueueData qd : qds) {
-      if (PermName.isReadable(qd.getPerm())) {
-        for (int i = 0; i < qd.getReadQueueNums(); i++) {
-          MessageQueue mq = new MessageQueue(topic, qd.getBrokerName(), i);
-          mqList.add(mq);
-        }
-      }
-    }
-
-    return mqList;
   }
 
   public TopicRouteData getAnExistTopicRouteData(final String topic) {

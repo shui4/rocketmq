@@ -51,8 +51,15 @@ public class PullAPIWrapper {
   private final MQClientInstance mQClientFactory;
   private final String consumerGroup;
   private final boolean unitMode;
+  /**
+   * BrokerId 缓存表。
+   *
+   * <p>这里的信息维护发生在：{@link PullMessageService}根据{@link PullRequest}请求从主服务器拉取消息后，会
+   * 返回下一次建议拉取的brokerId，消息消费者线程在收到消息后，会 根据主服务器的建议拉取brokerId来更新它，* 消息消费者线程更新它
+   */
   private ConcurrentMap<MessageQueue, AtomicLong /* brokerId */> pullFromWhichNodeTable =
       new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
+
   private volatile boolean connectBrokerByUser = false;
   private volatile long defaultBrokerId = MixAll.MASTER_ID;
   private Random random = new Random(System.currentTimeMillis());
@@ -77,7 +84,7 @@ public class PullAPIWrapper {
       List<MessageExt> msgList = MessageDecoder.decodes(byteBuffer);
 
       List<MessageExt> msgListFilterAgain = msgList;
-      if (!subscriptionData.getTagsSet().isEmpty()&& !subscriptionData.isClassFilterMode()) {
+      if (!subscriptionData.getTagsSet().isEmpty() && !subscriptionData.isClassFilterMode()) {
         msgListFilterAgain = new ArrayList<MessageExt>(msgList.size());
         for (MessageExt msg : msgList) {
           if (msg.getTags() != null) {
@@ -192,7 +199,7 @@ public class PullAPIWrapper {
       {
         // check version
         if (!ExpressionType.isTagType(expressionType)
-            && findBrokerResult.getBrokerVersion()< MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
+            && findBrokerResult.getBrokerVersion() < MQVersion.Version.V4_1_0_SNAPSHOT.ordinal()) {
           throw new MQClientException(
               "The broker["
                   + mq.getBrokerName()
@@ -246,7 +253,8 @@ public class PullAPIWrapper {
     if (this.isConnectBrokerByUser()) {
       return this.defaultBrokerId;
     }
-
+    // 获取该消息消费队列的brokerId，
+    // 如果找到，则返回，否则返回brokerName的主节点
     AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
     if (suggest != null) {
       return suggest.get();

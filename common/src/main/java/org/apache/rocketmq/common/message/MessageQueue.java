@@ -18,43 +18,91 @@ package org.apache.rocketmq.common.message;
 
 import java.io.Serializable;
 
+/**
+ * MessageQueue
+ *
+ * @author shui4
+ */
 public class MessageQueue implements Comparable<MessageQueue>, Serializable {
-    private static final long serialVersionUID = 6191200464116433425L;
-    private String topic;
-    private String brokerName;
-    private int queueId;
 
-    public MessageQueue() {
+  private static final long serialVersionUID = 6191200464116433425L;
 
-    }
+  /** topic */
+  private String topic;
 
-    public MessageQueue(String topic, String brokerName, int queueId) {
+  /** brokerName */
+  private String brokerName;
+
+  /** queueId */
+  private int queueId;
+
+  /** MessageQueue */
+  public MessageQueue() {}
+
+  /**
+   * MessageQueue
+   *
+   * @param topic ignore
+   * @param brokerName ignore
+   * @param queueId ignore
+   */
+  public MessageQueue(String topic, String brokerName, int queueId) {
         this.topic = topic;
         this.brokerName = brokerName;
         this.queueId = queueId;
     }
 
-    public String getTopic() {
+  /**
+   * getTopic
+   *
+   * @return ignore
+   */
+  public String getTopic() {
         return topic;
     }
 
-    public void setTopic(String topic) {
+  /**
+   * setTopic
+   *
+   * @param topic ignore
+   */
+  public void setTopic(String topic) {
         this.topic = topic;
     }
 
-    public String getBrokerName() {
+  /**
+   * getBrokerName
+   *
+   * @return ignore
+   */
+  public String getBrokerName() {
         return brokerName;
     }
 
-    public void setBrokerName(String brokerName) {
+  /**
+   * setBrokerName
+   *
+   * @param brokerName ignore
+   */
+  public void setBrokerName(String brokerName) {
         this.brokerName = brokerName;
     }
 
-    public int getQueueId() {
+  /**
+   * getQueueId
+   *
+   * @return ignore
+   */
+  public int getQueueId() {
         return queueId;
     }
 
-    public void setQueueId(int queueId) {
+  /**
+   * setQueueId
+   *
+   * @param queueId ignore
+   */
+  public void setQueueId(int queueId) {
         this.queueId = queueId;
     }
 

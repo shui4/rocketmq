@@ -157,6 +157,10 @@ public class CommitLog {
     return this.mappedFileQueue.getFlushedWhere();
   }
 
+  /**
+   * 获取最后一个文件中 文件名（开始偏移量）+当前文件写的位置
+   * @return
+   */
   public long getMaxOffset() {
     return this.mappedFileQueue.getMaxOffset();
   }
