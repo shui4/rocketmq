@@ -619,6 +619,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor
         storeOffsetEnable
             && this.brokerController.getMessageStoreConfig().getBrokerRole() != BrokerRole.SLAVE;
     // 如果 CommitLog 标记为可用并且当前节点为主节点，则更新消息消费进度
+
+    // Broker收到消息客户端消息拉取请求后，如果拉取请求 中有包含消费端的消息消费进度，则使用该进度更新Broker端的消费 进度，即提供了根据消费端覆盖服务端消费进度的机制
     if (storeOffsetEnable) {
       this.brokerController
           .getConsumerOffsetManager()

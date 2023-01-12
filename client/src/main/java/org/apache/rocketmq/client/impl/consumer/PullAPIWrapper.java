@@ -54,8 +54,8 @@ public class PullAPIWrapper {
   /**
    * BrokerId 缓存表。
    *
-   * <p>这里的信息维护发生在：{@link PullMessageService}根据{@link PullRequest}请求从主服务器拉取消息后，会
-   * 返回下一次建议拉取的brokerId，消息消费者线程在收到消息后，会 根据主服务器的建议拉取brokerId来更新它，* 消息消费者线程更新它
+   * <p>这里的信息维护发生在：{@link PullMessageService}根据 {@link PullRequest} 请求从主服务器拉取消息后，会 返回下一次建议拉取的
+   * brokerId，消息消费者线程在收到消息后，会 根据主服务器的建议拉取 brokerId 来更新它，* 消息消费者线程更新它
    */
   private ConcurrentMap<MessageQueue, AtomicLong /* brokerId */> pullFromWhichNodeTable =
       new ConcurrentHashMap<MessageQueue, AtomicLong>(32);
@@ -215,11 +215,11 @@ public class PullAPIWrapper {
       if (findBrokerResult.isSlave()) {
         sysFlagInner = PullSysFlag.clearCommitOffsetFlag(sysFlagInner);
       }
-
       PullMessageRequestHeader requestHeader = new PullMessageRequestHeader();
-      requestHeader.setConsumerGroup(this.consumerGroup);
       requestHeader.setTopic(mq.getTopic());
+      requestHeader.setConsumerGroup(this.consumerGroup);
       requestHeader.setQueueId(mq.getQueueId());
+      // 消费者在向 Broker 发送拉取消息请求时，会先将客户端存储的消费进度提交到 Broker 端
       requestHeader.setQueueOffset(offset);
       requestHeader.setMaxMsgNums(maxNums);
       requestHeader.setSysFlag(sysFlagInner);
@@ -253,8 +253,8 @@ public class PullAPIWrapper {
     if (this.isConnectBrokerByUser()) {
       return this.defaultBrokerId;
     }
-    // 获取该消息消费队列的brokerId，
-    // 如果找到，则返回，否则返回brokerName的主节点
+    // 获取该消息消费队列的 brokerId，
+    // 如果找到，则返回，否则返回 brokerName 的主节点
     AtomicLong suggest = this.pullFromWhichNodeTable.get(mq);
     if (suggest != null) {
       return suggest.get();
