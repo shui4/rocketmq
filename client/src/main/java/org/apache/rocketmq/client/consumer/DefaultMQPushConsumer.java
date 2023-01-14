@@ -50,7 +50,7 @@ import java.util.Set;
 /**
  * 在大多数情况下，这是最推荐使用消息的类。从技术上讲，这个推送客户端实际上是底层拉取服务的包装器。具体来说，当从代理中提取的消息到达时，它粗略地调用注册的回调处理程序来提供消息。有关典型用法，请参阅示例模块中的
  * quickstart/Consumer。 <br>
- * <strong>线程安全：</strong>初始化后，实例可以被认为是线程安全的。
+ * <strong> 线程安全：</strong> 初始化后，实例可以被认为是线程安全的。
  */
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
@@ -59,7 +59,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
   private final InternalLogger log = ClientLogger.getLog();
   /**
-   * 消费者组<br>
+   * 消费者组 <br>
    * Consumers of the same role is required to have exactly same subscriptions and consumerGroup to
    * correctly achieve load balance. It's required and needs to be globally unique. See <a
    * href="http://rocketmq.apache.org/docs/core-concept/">here</a> for further discussion.
@@ -67,7 +67,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
   private String consumerGroup;
 
   /**
-   * 消息消费模式，分为集群模式、广播模式，默认为集群模式<br>
+   * 消息消费模式，分为集群模式、广播模式，默认为集群模式 <br>
    * Message model defines the way how messages are delivered to each consumer clients. RocketMQ
    * supports two message models: clustering and broadcasting. If clustering is set, consumer
    * clients with the same {@link #consumerGroup} would only consume shards of the messages
@@ -138,27 +138,27 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
   private int consumeConcurrentlyMaxSpan = 2000;
 
   /**
-   * 队列级别的流控阈值，每个消息队列默认最多缓存1000条消息，考虑{@code pullBatchSize} ，瞬时值可能超过限制<br>
+   * 队列级别的流控阈值，每个消息队列默认最多缓存 1000 条消息，考虑 {@code pullBatchSize} ，瞬时值可能超过限制 <br>
    * 每 1000 次流控后打印流控日志
    */
   private int pullThresholdForQueue = 1000;
 
   /**
-   * 在队列级别限制缓存消息大小，每个消息队列默认最多缓存 100 MiB 消息，考虑{@code pullBatchSize} ， <br>
+   * 在队列级别限制缓存消息大小，每个消息队列默认最多缓存 100 MiB 消息，考虑 {@code pullBatchSize} ， <br>
    * 瞬时值可能超过限制 消息的大小仅通过消息体来衡量，因此并不准确
    */
   private int pullThresholdSizeForQueue = 100;
   /**
-   * 主题级别的流量控制阈值，默认值为-1（无限制）<br>
-   * {@code pullThresholdForQueue}的值将被覆盖并根据{@code pullThresholdForTopic}计算，如果它不是无限的 例如，如果
+   * 主题级别的流量控制阈值，默认值为 -1（无限制）<br>
+   * {@code pullThresholdForQueue}的值将被覆盖并根据 {@code pullThresholdForTopic} 计算，如果它不是无限的 例如，如果
    * pullThresholdForTopic 的值为 1000，并且为该消费者分配了 10 个消息队列，则 {@code pullThresholdForQueue} 将设置为 100
    */
   private int pullThresholdForTopic = -1;
 
   /**
-   * 限制主题级别的缓存消息大小，默认值为-1 MiB（无限制）<br>
-   * pullThresholdSizeForQueue的值如果不是无限的，将被覆盖并根据pullThresholdSizeForTopic计算 <br>
-   * 例如，如果 {@code pullThresholdSizeForTopic} 的值为 1000 MiB，并且为该消费者分配了 10 个消息队列，则<br>
+   * 限制主题级别的缓存消息大小，默认值为 -1 MiB（无限制）<br>
+   * pullThresholdSizeForQueue 的值如果不是无限的，将被覆盖并根据 pullThresholdSizeForTopic 计算 <br>
+   * 例如，如果 {@code pullThresholdSizeForTopic} 的值为 1000 MiB，并且为该消费者分配了 10 个消息队列，则 <br>
    * pullThresholdSizeForQueue 将设置为 100 MiB
    */
   private int pullThresholdSizeForTopic = -1;
@@ -169,27 +169,27 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
   /** 消息并发消费时一次 消费消息的条数，通俗点说，就是每次传入 {@link MessageListenerConcurrently#consumeMessage} 中的消息条数 */
   private int consumeMessageBatchMaxSize = 1;
 
-  /** 每次消息拉取的条数，默认32条 */
+  /** 每次消息拉取的条数，默认 32 条 */
   private int pullBatchSize = 32;
 
-  /** 是否每次拉取消息都更 新订阅信息，默认为false */
+  /** 是否每次拉取消息都更 新订阅信息，默认为 false */
   private boolean postSubscriptionWhenPull = false;
 
   /** Whether the unit of subscription group */
   private boolean unitMode = false;
   /**
    * 最大重复消费次数。在并发模式下，-1 表示 16；在有序模式下，-1 表示 Integer.MAX_VALUE。<br>
-   * 如果消息在成功之前被重新消费超过 该值 ,则将消息转移到一个失败队列，等待被删除。
+   * 如果消息在成功之前被重新消费超过 该值 , 则将消息转移到一个失败队列，等待被删除。
    */
   private int maxReconsumeTimes = -1;
 
   /** 对于需要缓慢拉动的情况，例如流控制场景，暂停拉动时间。 */
   private long suspendCurrentQueueTimeMillis = 1000;
 
-  /** 消息消费超时时间，默认为15， 单位为分钟 */
+  /** 消息消费超时时间，默认为 15， 单位为分钟 */
   private long consumeTimeout = 15;
 
-  /** 关闭消费者时等待消息消耗的最长时间，0表示不等待 */
+  /** 关闭消费者时等待消息消耗的最长时间，0 表示不等待 */
   private long awaitTerminationMillisWhenShutdown = 0;
 
   /** 异步传输数据接口 */
@@ -289,12 +289,11 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
    * enabled msg trace flag and customized trace topic name.
    *
    * @param namespace Namespace for this MQ Producer instance.
-   * @param consumerGroup Consume queue.
+   * @param consumerGroup 消息消费组名称
    * @param rpcHook RPC hook to execute before each remoting command.
    * @param allocateMessageQueueStrategy message queue allocating algorithm.
-   * @param enableMsgTrace Switch flag instance for message trace.
-   * @param customizedTraceTopic The name value of message trace topic.If you don't config,you can
-   *     use the default trace topic name.
+   * @param enableMsgTrace 是否启用消息轨迹
+   * @param customizedTraceTopic 用于记录消息轨迹的 topic
    */
   public DefaultMQPushConsumer(
       final String namespace,
@@ -320,15 +319,6 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         log.error("system mqtrace hook init failed ,maybe can't send msg trace data");
       }
     }
-  }
-
-  /**
-   * This method will be removed in a certain version after April 5, 2020, so please do not use this
-   * method.
-   */
-  @Deprecated
-  public DefaultMQPushConsumerImpl getDefaultMQPushConsumerImpl() {
-    return defaultMQPushConsumerImpl;
   }
 
   /**
@@ -374,6 +364,15 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
         allocateMessageQueueStrategy,
         enableMsgTrace,
         customizedTraceTopic);
+  }
+
+  /**
+   * This method will be removed in a certain version after April 5, 2020, so please do not use this
+   * method.
+   */
+  @Deprecated
+  public DefaultMQPushConsumerImpl getDefaultMQPushConsumerImpl() {
+    return defaultMQPushConsumerImpl;
   }
 
   /**
@@ -611,7 +610,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
     return subscription;
   }
 
-  /** 此方法将在2020年4月5日之后的特定版本中删除，因此请不要使用此方法。 */
+  /** 此方法将在 2020 年 4 月 5 日之后的特定版本中删除，因此请不要使用此方法。 */
   @Deprecated
   public void setSubscription(Map<String, String> subscription) {
     Map<String, String> subscriptionWithNamespace = new HashMap<String, String>();
@@ -684,7 +683,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
       try {
         traceDispatcher.start(this.getNamesrvAddr(), this.getAccessChannel());
       } catch (MQClientException e) {
-        log.warn("trace dispatcher start failed ", e);
+        log.warn("trace dispatcher start failed", e);
       }
     }
   }
