@@ -20,9 +20,7 @@ import org.apache.rocketmq.client.AccessChannel;
 import org.apache.rocketmq.client.exception.MQClientException;
 import java.io.IOException;
 
-/**
- * Interface of asynchronous transfer data
- */
+/** 消息轨迹转发处理器，其默认实现类为 {@link AsyncTraceDispatcher}，异步实现消息轨迹数据的发送 */
 public interface TraceDispatcher {
     enum Type {
         PRODUCE,

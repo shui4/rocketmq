@@ -16,13 +16,32 @@
  */
 package org.apache.rocketmq.client.hook;
 
-// 代码清单3-24
+// 代码清单 3-24
 
-/** 消息发送钩子 */
+/**
+ * 消息发送钩子，用于在消息发送之 前、发送之后执行一定的业务逻辑，是记录消息轨迹的最佳扩展点
+ *
+ * @author shui4
+ */
 public interface SendMessageHook {
+  /**
+   * hookName
+   *
+   * @return ignore
+   */
   String hookName();
 
+  /**
+   * sendMessageBefore
+   *
+   * @param context ignore
+   */
   void sendMessageBefore(final SendMessageContext context);
 
+  /**
+   * 客户端接收到服务端消息发送响应请求后被调用
+   *
+   * @param context ignore
+   */
   void sendMessageAfter(final SendMessageContext context);
 }

@@ -312,9 +312,12 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
             new AsyncTraceDispatcher(
                 consumerGroup, TraceDispatcher.Type.CONSUME, customizedTraceTopic, rpcHook);
         dispatcher.setHostConsumer(this.getDefaultMQPushConsumerImpl());
+        // 消息轨迹异步转发器
         traceDispatcher = dispatcher;
         this.getDefaultMQPushConsumerImpl()
-            .registerConsumeMessageHook(new ConsumeMessageTraceHookImpl(traceDispatcher));
+            .registerConsumeMessageHook(
+                // 注册消息消息轨迹钩子实现
+                new ConsumeMessageTraceHookImpl(traceDispatcher));
       } catch (Throwable e) {
         log.error("system mqtrace hook init failed ,maybe can't send msg trace data");
       }
