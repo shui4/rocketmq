@@ -259,6 +259,9 @@ public class BrokerController {
                 this.brokerStatsManager,
                 this.messageArrivingListener,
                 this.brokerConfig);
+        // 调用 LedgerLeaderElector 的 addRoleChanneHandler() 方法为每个
+        // 节点新增角色变更事件监听器，当发生主从切换时触发事件监听器，
+        // 例如发生主从切换后需要触发元数据的同步
         if (messageStoreConfig.isEnableDLegerCommitLog()) {
           DLedgerRoleChangeHandler roleChangeHandler =
               new DLedgerRoleChangeHandler(this, (DefaultMessageStore) messageStore);

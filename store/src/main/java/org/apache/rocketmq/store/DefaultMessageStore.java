@@ -154,6 +154,9 @@ public class DefaultMessageStore implements MessageStore {
     this.messageStoreConfig = messageStoreConfig;
     this.brokerStatsManager = brokerStatsManager;
     this.allocateMappedFileService = new AllocateMappedFileService(this);
+    // 在broker.conf配置文件中启用主从切换时会创建
+    // DLedgerCommitLog对象，用于重写CommitLog文件管理相关的逻辑，即
+    // 改变日志写入逻辑，引入DLedger日志存储格式
     if (messageStoreConfig.isEnableDLegerCommitLog()) {
       this.commitLog = new DLedgerCommitLog(this);
     } else {
@@ -261,7 +264,7 @@ public class DefaultMessageStore implements MessageStore {
   }
 
   /**
-   * 负载
+   * 加载文件
    *
    * @return boolean
    */
@@ -276,6 +279,8 @@ public class DefaultMessageStore implements MessageStore {
       log.info("last shutdown {}", lastExitOK ? "normally" : "abnormally");
 
       // 加载 Commit Log
+
+      // 如果开启了主从切换，则CommitLog的实现类为 DLedgerCommitLog，由其负责CommitLog文件的加载，该实例会引入 Raft协议，实现集群数据的一致性
       result = result && this.commitLog.load();
 
       // 加载 ConsumeQueue
